@@ -1,0 +1,17 @@
+version: '3.9'
+services:
+  mongo:
+    image: mongo
+    container_name: starfile_mongo
+    restart: always
+    ports:
+      - "27017:27017"
+    volumes:
+      - ./data/mongo:/etc/mongo
+
+  redis:
+    image: redis
+    container_name: starfile_redis
+    restart: always
+    ports:
+      - "6379:6379"
