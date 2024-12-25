@@ -2,12 +2,15 @@ package main
 
 import (
 	"StarFileManager/cmd"
+	"StarFileManager/internal/factory"
 	"context"
 	"fmt"
 	nested "github.com/antonfisher/nested-logrus-formatter"
 	"github.com/joho/godotenv"
 	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"os"
@@ -42,7 +45,7 @@ func main() {
 	if err := mg.Ping(timeoutCtx, nil); err != nil {
 		log.Fatalln("mongoDB数据库连接失败", err)
 	}
-	context.WithValue(ctx, "mongo", mg)
+	ctx = context.WithValue(ctx, "mongo", mg)
 
 	// redis数据库连接
 	var re = redis.NewClient(&redis.Options{
@@ -51,12 +54,26 @@ func main() {
 	if err := re.Ping(context.Background()).Err(); err != nil {
 		log.Fatalln("redis数据库连接失败", err)
 	}
-	context.WithValue(ctx, "redis", re)
+	ctx = context.WithValue(ctx, "redis", re)
 
-	// 文件保存位置
-	err = os.MkdirAll("data/files", os.ModePerm)
-	if err != nil {
-		log.Fatalln("创建图片缓存目录失败:", err)
+	// 创建根目录
+	files := mg.Database("starfile").Collection("files")
+	if err := files.FindOne(context.Background(), bson.M{"_id": os.Getenv("rootInode")}).Err(); err != nil {
+		root := factory.CreateDir("root", 0755)
+		root["_id"] = os.Getenv("rootInode")
+		// 创建home目录
+		home := factory.CreateDir("root", 0755)
+		res, _ := files.InsertOne(context.Background(), home)
+		homeId := res.InsertedID
+		root["content"].(bson.M)["home"] = homeId.(primitive.ObjectID)
+		files.InsertOne(context.Background(), root)
+	}
+
+	// 当前登录用户
+	user, err := re.Get(context.Background(), string(os.Getppid())).Result()
+	if err == nil && user != "" {
+		ctx = context.WithValue(ctx, "user", user)
+		log.Debugln("当前用户", ctx.Value("user"))
 	}
 
 	// 通过上下文注入依赖

@@ -4,10 +4,11 @@ services:
     image: mongo
     container_name: starfile_mongo
     restart: always
+    privileged: true
     ports:
       - "27017:27017"
     volumes:
-      - ./data/mongo:/etc/mongo
+      - mongodata:/data/db
 
   redis:
     image: redis
@@ -15,3 +16,6 @@ services:
     restart: always
     ports:
       - "6379:6379"
+
+volumes:
+  mongodata:
