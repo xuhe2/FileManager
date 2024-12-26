@@ -121,3 +121,43 @@ func MakeDir(ctx context.Context, path string, isCreateP bool) error {
 
 	return nil
 }
+
+func DeleteDir(ctx context.Context, path string, deleteOnlyEmpty bool) error {
+	mg := ctx.Value("mongo").(*mongo.Client)
+	files := mg.Database("starfile").Collection("files")
+
+	// 找到目标目录
+	path, err := GetRealPath(ctx, path)
+	log.Debugln(path)
+	if err != nil {
+		return err
+	}
+	var current bson.M
+	var father bson.M
+	files.FindOne(context.Background(), bson.M{"_id": os.Getenv("rootInode")}).Decode(&current)
+	segments := strings.Split(path[1:], "/")
+	log.Debugln(segments)
+	for _, segment := range segments {
+		log.Debugln("当前目录:", current)
+		father = current
+		current, err = GetFile(ctx, current, segment) // 获取下一层目录
+		if err != nil {
+			return err
+		}
+	}
+
+	if len(current["content"].(bson.M)) != 0 {
+		if deleteOnlyEmpty {
+			return errors.New("目录非空,无法删除")
+		} else {
+			// TODO 递归删除
+		}
+	}
+
+	// 删除目录
+	delete(father["content"].(bson.M), segments[len(segments)-1])
+	files.UpdateOne(context.Background(), bson.M{"_id": father["_id"]}, bson.M{"$set": father})
+	files.DeleteOne(context.Background(), bson.M{"_id": current["_id"]})
+
+	return nil
+}
