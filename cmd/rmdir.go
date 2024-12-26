@@ -10,7 +10,7 @@ var rmdirCmd = &cobra.Command{
 	Short: "删除空目录",
 	Long:  `删除指定的目录,必须是空目录`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return call.DeleteDir(cmd.Context(), args[0], true)
+		return call.DeleteFile(cmd.Context(), args[0], false, true, true)
 	},
 }
 

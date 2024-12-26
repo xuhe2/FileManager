@@ -6,8 +6,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// pwdCommand 当前目录
-var pwdCommand = &cobra.Command{
+// pwdCmd 当前目录
+var pwdCmd = &cobra.Command{
 	Use:   "pwd",
 	Short: "获取当前所在的文件路径",
 	Long:  `获取当前所在的文件路径地址,需要先登录`,
@@ -23,5 +23,5 @@ var pwdCommand = &cobra.Command{
 }
 
 func init() {
-	rootCmd.AddCommand(pwdCommand)
+	rootCmd.AddCommand(pwdCmd)
 }

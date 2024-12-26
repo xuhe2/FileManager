@@ -68,7 +68,7 @@ func GetFile(ctx context.Context, fatherDir bson.M, filename string) (bson.M, er
 }
 
 // MakeDir 创建目录
-func MakeDir(ctx context.Context, path string, isCreateP bool) error {
+func MakeDir(ctx context.Context, path string, isCreateP bool) (primitive.ObjectID, error) {
 	mg := ctx.Value("mongo").(*mongo.Client)
 	re := ctx.Value("redis").(*redis.Client)
 	files := mg.Database("starfile").Collection("files")
@@ -82,19 +82,22 @@ func MakeDir(ctx context.Context, path string, isCreateP bool) error {
 	log.Debugln(segments)
 	for _, segment := range segments[:len(segments)-1] {
 		log.Debugln("当前目录:", current)
-		current, err = GetFile(ctx, current, segment) // 获取下一层目录
+		var next bson.M
+		next, err = GetFile(ctx, current, segment) // 获取下一层目录
 		currentDir = currentDir + "/" + segment
 		if err != nil {
 			if isCreateP {
 				// 创建目录
-				err := MakeDir(ctx, currentDir, isCreateP)
+				id, err := MakeDir(ctx, currentDir, isCreateP)
 				if err != nil {
-					return err
+					return primitive.NilObjectID, err
 				}
+				files.FindOne(context.Background(), bson.M{"_id": id}).Decode(&next)
 			} else {
-				return err
+				return primitive.NilObjectID, err
 			}
 		}
+		current = next
 	}
 
 	// 创建当前目录
@@ -102,11 +105,11 @@ func MakeDir(ctx context.Context, path string, isCreateP bool) error {
 	umask, err := re.Get(context.Background(), fmt.Sprintf("%s:umask", GetUser(ctx))).Int()
 	log.Debugln("创建目录:", dirname, umask)
 	if err != nil {
-		return err
+		return primitive.NilObjectID, err
 	}
 	var inodeId primitive.ObjectID
 	if res, err := files.InsertOne(ctx, factory.CreateDir(GetUser(ctx), 0777 & ^umask)); err != nil {
-		return err
+		return primitive.NilObjectID, err
 	} else {
 		inodeId = res.InsertedID.(primitive.ObjectID)
 	}
@@ -119,14 +122,15 @@ func MakeDir(ctx context.Context, path string, isCreateP bool) error {
 	}}
 	files.UpdateOne(context.Background(), filter, update)
 
-	return nil
+	return inodeId, nil
 }
 
-func DeleteDir(ctx context.Context, path string, deleteOnlyEmpty bool) error {
+// DeleteFile 删除文件(目录)
+func DeleteFile(ctx context.Context, path string, deleteFile bool, deleteDir bool, deleteOnlyEmptyDir bool) error {
 	mg := ctx.Value("mongo").(*mongo.Client)
 	files := mg.Database("starfile").Collection("files")
 
-	// 找到目标目录
+	// 找到目标文件
 	path, err := GetRealPath(ctx, path)
 	log.Debugln(path)
 	if err != nil {
@@ -146,15 +150,32 @@ func DeleteDir(ctx context.Context, path string, deleteOnlyEmpty bool) error {
 		}
 	}
 
-	if len(current["content"].(bson.M)) != 0 {
-		if deleteOnlyEmpty {
-			return errors.New("目录非空,无法删除")
-		} else {
-			// TODO 递归删除
+	// 判断目标类型
+	if current["type"] == "dir" {
+		if !deleteDir {
+			return errors.New("目标是文件夹,无法删除")
+		} else if len(current["content"].(bson.M)) != 0 {
+			// 当前为文件夹,判断是否可以删非空
+			if deleteOnlyEmptyDir {
+				return errors.New("目录非空,无法删除")
+			} else {
+				// 删除所有子目录
+				for name, _ := range current["content"].(bson.M) {
+					err := DeleteFile(ctx, filepath.Join(path, name), true, true, false)
+					if err != nil {
+						return err
+					}
+				}
+			}
+		}
+	} else if current["type"] == "file" {
+		if !deleteFile {
+			return errors.New("目标是文件,无法删除")
 		}
 	}
 
-	// 删除目录
+	// 删除目标文件
+	log.Debugln("删除", segments[len(segments)-1])
 	delete(father["content"].(bson.M), segments[len(segments)-1])
 	files.UpdateOne(context.Background(), bson.M{"_id": father["_id"]}, bson.M{"$set": father})
 	files.DeleteOne(context.Background(), bson.M{"_id": current["_id"]})
