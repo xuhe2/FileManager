@@ -38,6 +38,20 @@ func GetRealPath(ctx context.Context, path string) (string, error) {
 	return filepath.Join(pwd, path), nil
 }
 
+func ChangePath(ctx context.Context, target string) error {
+	re := ctx.Value("redis").(*redis.Client)
+	user := GetUser(ctx)
+	now, err := GetRealPath(ctx, target)
+	if err != nil {
+		return err
+	}
+	_, err = re.Set(context.Background(), fmt.Sprintf("%s:%s", user, "path"), now, 0).Result()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // GetFile 获取指定目录下指定文件名的文件
 func GetFile(ctx context.Context, fatherDir bson.M, filename string) (bson.M, error) {
 	mg := ctx.Value("mongo").(*mongo.Client)
