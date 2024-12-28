@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"StarFileManager/internal/call"
+	"errors"
 	"github.com/spf13/cobra"
 )
 
@@ -12,6 +13,9 @@ var mkdirCmd = &cobra.Command{
 	Long:  `在指定目录下创建目录,`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		p, _ := cmd.Flags().GetBool("parents")
+		if len(args) < 1 {
+			return errors.New("缺少操作数")
+		}
 		_, err := call.MakeDir(cmd.Context(), args[0], p)
 		return err
 	},

@@ -52,21 +52,6 @@ func ChangePath(ctx context.Context, target string) error {
 	return nil
 }
 
-// GetFile 获取指定目录下指定文件名的文件
-func GetFile(ctx context.Context, fatherDir bson.M, filename string) (bson.M, error) {
-	mg := ctx.Value("mongo").(*mongo.Client)
-	files := mg.Database("starfile").Collection("files")
-
-	inodeId, ok := fatherDir["content"].(bson.M)[filename]
-	if !ok {
-		return nil, errors.New("文件不存在")
-	}
-	res := bson.M{}
-	filter := bson.M{"_id": inodeId}
-	err := files.FindOne(ctx, filter).Decode(&res)
-	return res, err
-}
-
 // MakeDir 创建目录
 func MakeDir(ctx context.Context, path string, isCreateP bool) (primitive.ObjectID, error) {
 	mg := ctx.Value("mongo").(*mongo.Client)
@@ -100,8 +85,14 @@ func MakeDir(ctx context.Context, path string, isCreateP bool) (primitive.Object
 		current = next
 	}
 
-	// 创建当前目录
+	// 验证是否重复创建
 	dirname := segments[len(segments)-1]
+	log.Debugln(current["_id"])
+	if _, ok := current["content"].(bson.M)[dirname]; ok {
+		return primitive.NilObjectID, errors.New("目录名重复")
+	}
+
+	// 创建当前目录
 	umask, err := re.Get(context.Background(), fmt.Sprintf("%s:umask", GetUser(ctx))).Int()
 	log.Debugln("创建目录:", dirname, umask)
 	if err != nil {
@@ -115,7 +106,6 @@ func MakeDir(ctx context.Context, path string, isCreateP bool) (primitive.Object
 	}
 
 	//上级目录补充当前目录信息
-	log.Debugln(current["_id"])
 	filter := bson.M{"_id": current["_id"]}
 	update := bson.M{"$set": bson.M{
 		"content." + dirname: inodeId,
@@ -123,62 +113,4 @@ func MakeDir(ctx context.Context, path string, isCreateP bool) (primitive.Object
 	files.UpdateOne(context.Background(), filter, update)
 
 	return inodeId, nil
-}
-
-// DeleteFile 删除文件(目录)
-func DeleteFile(ctx context.Context, path string, deleteFile bool, deleteDir bool, deleteOnlyEmptyDir bool) error {
-	mg := ctx.Value("mongo").(*mongo.Client)
-	files := mg.Database("starfile").Collection("files")
-
-	// 找到目标文件
-	path, err := GetRealPath(ctx, path)
-	log.Debugln(path)
-	if err != nil {
-		return err
-	}
-	var current bson.M
-	var father bson.M
-	files.FindOne(context.Background(), bson.M{"_id": os.Getenv("rootInode")}).Decode(&current)
-	segments := strings.Split(path[1:], "/")
-	log.Debugln(segments)
-	for _, segment := range segments {
-		log.Debugln("当前目录:", current)
-		father = current
-		current, err = GetFile(ctx, current, segment) // 获取下一层目录
-		if err != nil {
-			return err
-		}
-	}
-
-	// 判断目标类型
-	if current["type"] == "dir" {
-		if !deleteDir {
-			return errors.New("目标是文件夹,无法删除")
-		} else if len(current["content"].(bson.M)) != 0 {
-			// 当前为文件夹,判断是否可以删非空
-			if deleteOnlyEmptyDir {
-				return errors.New("目录非空,无法删除")
-			} else {
-				// 删除所有子目录
-				for name, _ := range current["content"].(bson.M) {
-					err := DeleteFile(ctx, filepath.Join(path, name), true, true, false)
-					if err != nil {
-						return err
-					}
-				}
-			}
-		}
-	} else if current["type"] == "file" {
-		if !deleteFile {
-			return errors.New("目标是文件,无法删除")
-		}
-	}
-
-	// 删除目标文件
-	log.Debugln("删除", segments[len(segments)-1])
-	delete(father["content"].(bson.M), segments[len(segments)-1])
-	files.UpdateOne(context.Background(), bson.M{"_id": father["_id"]}, bson.M{"$set": father})
-	files.DeleteOne(context.Background(), bson.M{"_id": current["_id"]})
-
-	return nil
 }

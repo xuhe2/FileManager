@@ -10,6 +10,9 @@ var cdCmd = &cobra.Command{
 	Short: "进入目录",
 	Long:  `进入参数指定的目录,支持绝对和相对路径`,
 	Run: func(cmd *cobra.Command, args []string) {
+		if len(args) < 1 {
+			return
+		}
 		call.ChangePath(cmd.Context(), args[0])
 	},
 }

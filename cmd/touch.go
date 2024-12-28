@@ -6,18 +6,19 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var rmdirCmd = &cobra.Command{
-	Use:   "rmdir",
-	Short: "删除空目录",
-	Long:  `删除指定的目录,必须是空目录`,
+var touchCmd = &cobra.Command{
+	Use:   "touch",
+	Short: "创建或访问文件",
+	Long:  `访问指定的文件,如果不存在则创建它`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 1 {
 			return errors.New("缺少操作数")
 		}
-		return call.DeleteFile(cmd.Context(), args[0], false, true, true)
+		_, err := call.MakeFile(cmd.Context(), args[0])
+		return err
 	},
 }
 
 func init() {
-	rootCmd.AddCommand(rmdirCmd)
+	rootCmd.AddCommand(touchCmd)
 }

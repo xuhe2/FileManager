@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"StarFileManager/internal/call"
+	"errors"
 	"github.com/spf13/cobra"
 )
 
@@ -13,6 +14,9 @@ var rmCmd = &cobra.Command{
 		deleteDir, err := cmd.Flags().GetBool("recursive")
 		if err != nil {
 			return err
+		}
+		if len(args) < 1 {
+			return errors.New("缺少操作数")
 		}
 		return call.DeleteFile(cmd.Context(), args[0], true, deleteDir, false)
 	},
