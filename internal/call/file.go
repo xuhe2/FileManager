@@ -123,6 +123,39 @@ func GetFileType(ctx context.Context, path string) (string, error) {
 	return current["type"].(string), nil
 }
 
+// GetFileContext 获取文件内容
+func GetFileContent(ctx context.Context, path string) (string, error) {
+	mg := ctx.Value("mongo").(*mongo.Client)
+	files := mg.Database("starfile").Collection("files")
+
+	// 找到目标文件
+	path, err := GetRealPath(ctx, path)
+	log.Debugln(path)
+	if err != nil {
+		return "", err
+	}
+	var current bson.M
+	files.FindOne(context.Background(), bson.M{"_id": os.Getenv("rootInode")}).Decode(&current)
+	segments := strings.Split(path[1:], "/")
+	log.Debugln(segments)
+	for i, segment := range segments {
+		log.Debugln("当前目录:", current)
+		current, err = GetChildFile(ctx, current, segment) // 获取下一层目录
+		if err != nil {
+			return "", err
+		}
+		if i != len(segments)-1 && current["type"] != "dir" {
+			return "", errors.New("不是目录")
+		}
+	}
+
+	if current["type"] != "file" {
+		return "", errors.New("不可获取文件夹内容")
+	}
+
+	return current["content"].(string), nil
+}
+
 // DeleteFile 删除文件(目录)
 func DeleteFile(ctx context.Context, path string, deleteFile bool, deleteDir bool, deleteOnlyEmptyDir bool) error {
 	mg := ctx.Value("mongo").(*mongo.Client)
