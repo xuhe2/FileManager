@@ -22,7 +22,7 @@ func MakeFile(ctx context.Context, path string) (primitive.ObjectID, error) {
 	files := mg.Database("starfile").Collection("files")
 	path, err := GetRealPath(ctx, path)
 
-	// 逐个确认目录
+	// 逐个进入目录
 	var current bson.M
 	files.FindOne(context.Background(), bson.M{"_id": os.Getenv("rootInode")}).Decode(&current)
 	currentDir := ""
@@ -34,6 +34,9 @@ func MakeFile(ctx context.Context, path string) (primitive.ObjectID, error) {
 		currentDir = currentDir + "/" + segment
 		if err != nil {
 			return primitive.NilObjectID, err
+		}
+		if current["type"] != "dir" {
+			return primitive.NilObjectID, errors.New("不是目录")
 		}
 	}
 
@@ -98,12 +101,15 @@ func DeleteFile(ctx context.Context, path string, deleteFile bool, deleteDir boo
 	files.FindOne(context.Background(), bson.M{"_id": os.Getenv("rootInode")}).Decode(&current)
 	segments := strings.Split(path[1:], "/")
 	log.Debugln(segments)
-	for _, segment := range segments {
+	for i, segment := range segments {
 		log.Debugln("当前目录:", current)
 		father = current
 		current, err = GetFile(ctx, current, segment) // 获取下一层目录
 		if err != nil {
 			return err
+		}
+		if i != len(segments)-1 && current["type"] != "dir" {
+			return errors.New("不是目录")
 		}
 	}
 

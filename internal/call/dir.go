@@ -39,13 +39,33 @@ func GetRealPath(ctx context.Context, path string) (string, error) {
 }
 
 func ChangePath(ctx context.Context, target string) error {
+	mg := ctx.Value("mongo").(*mongo.Client)
 	re := ctx.Value("redis").(*redis.Client)
+	files := mg.Database("starfile").Collection("files")
+
 	user := GetUser(ctx)
-	now, err := GetRealPath(ctx, target)
+	path, err := GetRealPath(ctx, target)
 	if err != nil {
 		return err
 	}
-	_, err = re.Set(context.Background(), fmt.Sprintf("%s:%s", user, "path"), now, 0).Result()
+
+	// 逐个进入目录
+	var current bson.M
+	files.FindOne(context.Background(), bson.M{"_id": os.Getenv("rootInode")}).Decode(&current)
+	currentDir := ""
+	segments := strings.Split(path[1:], "/")
+	log.Debugln(segments)
+	for _, segment := range segments {
+		log.Debugln("当前目录:", current)
+		current, err = GetFile(ctx, current, segment) // 获取下一层目录
+		currentDir = currentDir + "/" + segment
+		log.Debugln(current["type"])
+		if err != nil || current["type"] != "dir" {
+			return errors.New("不是目录")
+		}
+	}
+
+	_, err = re.Set(context.Background(), fmt.Sprintf("%s:%s", user, "path"), path, 0).Result()
 	if err != nil {
 		return err
 	}
@@ -81,6 +101,9 @@ func MakeDir(ctx context.Context, path string, isCreateP bool) (primitive.Object
 			} else {
 				return primitive.NilObjectID, err
 			}
+		}
+		if next["type"] != "dir" {
+			return primitive.NilObjectID, errors.New("不是目录")
 		}
 		current = next
 	}
