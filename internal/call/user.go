@@ -3,6 +3,7 @@ package call
 import (
 	"StarFileManager/internal/factory"
 	"context"
+	"errors"
 	"fmt"
 	"github.com/redis/go-redis/v9"
 	"go.mongodb.org/mongo-driver/bson"
@@ -77,4 +78,24 @@ func Register(ctx context.Context, username string, password string) bool {
 	files.UpdateOne(context.Background(), filter, update)
 
 	return true
+}
+
+// SetUmask 设置用户mask
+func SetUmask(ctx context.Context, umask int) error {
+	mg := ctx.Value("mongo").(*mongo.Client)
+	re := ctx.Value("redis").(*redis.Client)
+	users := mg.Database("starfile").Collection("users")
+	username := GetUser(ctx)
+
+	// 验证umask
+	if umask > 0777 {
+		return errors.New("username mask应为3位8进制")
+	}
+
+	filter := bson.M{"username": username}
+	update := bson.M{"$set": bson.M{"umask": umask}}
+	users.UpdateOne(context.Background(), filter, update)
+	re.Get(context.Background(), fmt.Sprintf("%s:umask", username))
+	re.Set(context.Background(), fmt.Sprintf("%s:umask", username), umask, 0)
+	return nil
 }
