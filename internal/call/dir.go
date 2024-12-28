@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // GetPwd 获取当前所在的目录
@@ -122,7 +123,7 @@ func MakeDir(ctx context.Context, path string, isCreateP bool) (primitive.Object
 		return primitive.NilObjectID, err
 	}
 	var inodeId primitive.ObjectID
-	if res, err := files.InsertOne(ctx, factory.CreateDir(GetUser(ctx), 0777 & ^umask)); err != nil {
+	if res, err := files.InsertOne(ctx, factory.CreateDir(GetUser(ctx), time.Now(), 0777 & ^umask)); err != nil {
 		return primitive.NilObjectID, err
 	} else {
 		inodeId = res.InsertedID.(primitive.ObjectID)

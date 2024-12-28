@@ -5,27 +5,24 @@ import (
 	"time"
 )
 
-func CreateFile(content, owner string, chmod int) bson.M {
+func CreateFile(content, owner string, stamp time.Time, chmod int) bson.M {
 	return bson.M{
-		"content":  content,
-		"type":     "file",
-		"size":     len([]byte(content)) / 8,
-		"owner":    owner,
-		"chmod":    chmod,
-		"created":  time.Now(),
-		"modified": time.Now(),
-		"updated":  time.Now(),
+		"content": content,
+		"type":    "file",
+		"size":    len([]byte(content)) / 8,
+		"owner":   owner,
+		"chmod":   chmod,
+		"time":    stamp,
 	}
 }
 
-func CreateDir(owner string, chmod int) bson.M {
+func CreateDir(owner string, stamp time.Time, chmod int) bson.M {
 	return bson.M{
 		"content": bson.M{},
 		"type":    "dir",
 		"size":    0,
 		"owner":   owner,
 		"chmod":   chmod,
-		"created": time.Now(),
-		"updated": time.Now(),
+		"time":    stamp,
 	}
 }

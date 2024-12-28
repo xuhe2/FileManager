@@ -13,10 +13,11 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // MakeFile 创建目录
-func MakeFile(ctx context.Context, path string) (primitive.ObjectID, error) {
+func MakeFile(ctx context.Context, path string, stamp time.Time) (primitive.ObjectID, error) {
 	mg := ctx.Value("mongo").(*mongo.Client)
 	re := ctx.Value("redis").(*redis.Client)
 	files := mg.Database("starfile").Collection("files")
@@ -44,7 +45,16 @@ func MakeFile(ctx context.Context, path string) (primitive.ObjectID, error) {
 	log.Debugln(current["_id"])
 	filename := segments[len(segments)-1]
 	if _, ok := current["content"].(bson.M)[filename]; ok {
-		return primitive.NilObjectID, errors.New("文件名重复")
+		//重复创建,仅修改访问与创建时间
+		file, err := GetChildFile(ctx, current, filename)
+		if err != nil {
+			return primitive.NilObjectID, err
+		}
+		inodeId := file["_id"].(primitive.ObjectID)
+		filter := bson.M{"_id": inodeId}
+		update := bson.M{"$set": bson.M{"time": stamp}}
+		files.UpdateOne(context.Background(), filter, update)
+		return inodeId, nil
 	}
 
 	// 创建当前目录
@@ -54,7 +64,7 @@ func MakeFile(ctx context.Context, path string) (primitive.ObjectID, error) {
 		return primitive.NilObjectID, err
 	}
 	var inodeId primitive.ObjectID
-	if res, err := files.InsertOne(ctx, factory.CreateFile("", GetUser(ctx), 0666 & ^umask)); err != nil {
+	if res, err := files.InsertOne(ctx, factory.CreateFile("", GetUser(ctx), stamp, 0666 & ^umask)); err != nil {
 		return primitive.NilObjectID, err
 	} else {
 		inodeId = res.InsertedID.(primitive.ObjectID)

@@ -9,6 +9,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"os"
+	"time"
 )
 
 // GetUser 是否登录
@@ -68,7 +69,7 @@ func Register(ctx context.Context, username string, password string) bool {
 	var root bson.M
 	files.FindOne(context.Background(), bson.M{"_id": os.Getenv("rootInode")}).Decode(&root)
 	home, _ := GetChildFile(ctx, root, "home")
-	userpath := factory.CreateDir(username, 0750)
+	userpath := factory.CreateDir(username, time.Now(), 0750)
 	res, _ := files.InsertOne(context.Background(), userpath)
 	userpathId := res.InsertedID
 	filter = bson.M{"_id": home["_id"]}

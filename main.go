@@ -59,10 +59,10 @@ func main() {
 	// 创建根目录
 	files := mg.Database("starfile").Collection("files")
 	if err := files.FindOne(context.Background(), bson.M{"_id": os.Getenv("rootInode")}).Err(); err != nil {
-		root := factory.CreateDir("root", 0755)
+		root := factory.CreateDir("root", time.Now(), 0755)
 		root["_id"] = os.Getenv("rootInode")
 		// 创建home目录
-		home := factory.CreateDir("root", 0755)
+		home := factory.CreateDir("root", time.Now(), 0755)
 		res, _ := files.InsertOne(context.Background(), home)
 		homeId := res.InsertedID
 		root["content"].(bson.M)["home"] = homeId.(primitive.ObjectID)
