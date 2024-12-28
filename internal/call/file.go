@@ -30,7 +30,7 @@ func MakeFile(ctx context.Context, path string) (primitive.ObjectID, error) {
 	log.Debugln(segments)
 	for _, segment := range segments[:len(segments)-1] {
 		log.Debugln("当前目录:", current)
-		current, err = GetFile(ctx, current, segment) // 获取下一层目录
+		current, err = GetChildFile(ctx, current, segment) // 获取下一层目录
 		currentDir = currentDir + "/" + segment
 		if err != nil {
 			return primitive.NilObjectID, err
@@ -70,8 +70,8 @@ func MakeFile(ctx context.Context, path string) (primitive.ObjectID, error) {
 	return inodeId, nil
 }
 
-// GetFile 获取指定目录下指定文件名的文件
-func GetFile(ctx context.Context, fatherDir bson.M, filename string) (bson.M, error) {
+// GetChildFile 获取指定目录下指定文件名的文件
+func GetChildFile(ctx context.Context, fatherDir bson.M, filename string) (bson.M, error) {
 	mg := ctx.Value("mongo").(*mongo.Client)
 	files := mg.Database("starfile").Collection("files")
 
@@ -83,6 +83,34 @@ func GetFile(ctx context.Context, fatherDir bson.M, filename string) (bson.M, er
 	filter := bson.M{"_id": inodeId}
 	err := files.FindOne(ctx, filter).Decode(&res)
 	return res, err
+}
+
+// GetFileType 获取文件类型
+func GetFileType(ctx context.Context, path string) (string, error) {
+	mg := ctx.Value("mongo").(*mongo.Client)
+	files := mg.Database("starfile").Collection("files")
+
+	path, err := GetRealPath(ctx, path)
+	if err != nil {
+		return "", err
+	}
+
+	var current bson.M
+	files.FindOne(context.Background(), bson.M{"_id": os.Getenv("rootInode")}).Decode(&current)
+	segments := strings.Split(path[1:], "/")
+	log.Debugln(segments)
+	for i, segment := range segments {
+		log.Debugln("当前目录:", current)
+		current, err = GetChildFile(ctx, current, segment) // 获取下一层目录
+		if err != nil {
+			return "", err
+		}
+		if i != len(segments)-1 && current["type"] != "dir" {
+			return "", errors.New("不是目录")
+		}
+	}
+
+	return current["type"].(string), nil
 }
 
 // DeleteFile 删除文件(目录)
@@ -104,7 +132,7 @@ func DeleteFile(ctx context.Context, path string, deleteFile bool, deleteDir boo
 	for i, segment := range segments {
 		log.Debugln("当前目录:", current)
 		father = current
-		current, err = GetFile(ctx, current, segment) // 获取下一层目录
+		current, err = GetChildFile(ctx, current, segment) // 获取下一层目录
 		if err != nil {
 			return err
 		}

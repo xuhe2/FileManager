@@ -57,7 +57,7 @@ func ChangePath(ctx context.Context, target string) error {
 	log.Debugln(segments)
 	for _, segment := range segments {
 		log.Debugln("当前目录:", current)
-		current, err = GetFile(ctx, current, segment) // 获取下一层目录
+		current, err = GetChildFile(ctx, current, segment) // 获取下一层目录
 		currentDir = currentDir + "/" + segment
 		log.Debugln(current["type"])
 		if err != nil || current["type"] != "dir" {
@@ -88,7 +88,7 @@ func MakeDir(ctx context.Context, path string, isCreateP bool) (primitive.Object
 	for _, segment := range segments[:len(segments)-1] {
 		log.Debugln("当前目录:", current)
 		var next bson.M
-		next, err = GetFile(ctx, current, segment) // 获取下一层目录
+		next, err = GetChildFile(ctx, current, segment) // 获取下一层目录
 		currentDir = currentDir + "/" + segment
 		if err != nil {
 			if isCreateP {

@@ -67,7 +67,7 @@ func Register(ctx context.Context, username string, password string) bool {
 	// 创建主目录
 	var root bson.M
 	files.FindOne(context.Background(), bson.M{"_id": os.Getenv("rootInode")}).Decode(&root)
-	home, _ := GetFile(ctx, root, "home")
+	home, _ := GetChildFile(ctx, root, "home")
 	userpath := factory.CreateDir(username, 0750)
 	res, _ := files.InsertOne(context.Background(), userpath)
 	userpathId := res.InsertedID
