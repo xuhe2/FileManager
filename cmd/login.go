@@ -7,7 +7,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// loginCmd 登录命令
+// loginCmd 登录
 var loginCmd = &cobra.Command{
 	Use:   "login",
 	Short: "用户登录",

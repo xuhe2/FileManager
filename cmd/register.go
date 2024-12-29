@@ -7,7 +7,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// registerCmd 注册命令
+// registerCmd 注册
 var registerCmd = &cobra.Command{
 	Use:   "register",
 	Short: "用户注册",

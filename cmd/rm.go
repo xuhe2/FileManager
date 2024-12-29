@@ -6,10 +6,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// rmCmd 删除文件
 var rmCmd = &cobra.Command{
 	Use:   "rm",
 	Short: "删除文件",
-	Long:  `删除文件,如果传入--recursive标志则可递归删除文件夹`,
+	Long:  `删除文件,如果传入-r标志则可递归删除文件夹`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		deleteDir, err := cmd.Flags().GetBool("recursive")
 		if err != nil {

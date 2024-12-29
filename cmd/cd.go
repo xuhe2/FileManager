@@ -5,6 +5,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// cdCmd 进入指定目录
 var cdCmd = &cobra.Command{
 	Use:   "cd",
 	Short: "进入目录",

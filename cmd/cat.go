@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// catCmd 查看文件内容
 var catCmd = &cobra.Command{
 	Use:   "cat",
 	Short: "输出文件内容",

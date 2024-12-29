@@ -16,34 +16,18 @@ import (
 	"time"
 )
 
-// MakeFile 创建目录
+// MakeFile 创建文件
 func MakeFile(ctx context.Context, path string, stamp time.Time) (primitive.ObjectID, error) {
 	mg := ctx.Value("mongo").(*mongo.Client)
 	re := ctx.Value("redis").(*redis.Client)
 	files := mg.Database("starfile").Collection("files")
-	path, err := GetRealPath(ctx, path)
 
 	// 逐个进入目录
-	var current bson.M
-	files.FindOne(context.Background(), bson.M{"_id": os.Getenv("rootInode")}).Decode(&current)
-	currentDir := ""
-	segments := strings.Split(path[1:], "/")
-	log.Debugln(segments)
-	for _, segment := range segments[:len(segments)-1] {
-		log.Debugln("当前目录:", current)
-		current, err = GetChildFile(ctx, current, segment) // 获取下一层目录
-		currentDir = currentDir + "/" + segment
-		if err != nil {
-			return primitive.NilObjectID, err
-		}
-		if current["type"] != "dir" {
-			return primitive.NilObjectID, errors.New("不是目录")
-		}
-	}
+	current, err := GetFile(ctx, path, false)
 
 	// 验证是否重复创建
 	log.Debugln(current["_id"])
-	filename := segments[len(segments)-1]
+	filename := filepath.Base(path)
 	if _, ok := current["content"].(bson.M)[filename]; ok {
 		//重复创建,仅修改访问与创建时间
 		file, err := GetChildFile(ctx, current, filename)
@@ -80,6 +64,44 @@ func MakeFile(ctx context.Context, path string, stamp time.Time) (primitive.Obje
 	return inodeId, nil
 }
 
+// GetFile 获取指定的文件
+func GetFile(ctx context.Context, path string, includeLast bool) (bson.M, error) {
+	mg := ctx.Value("mongo").(*mongo.Client)
+	files := mg.Database("starfile").Collection("files")
+
+	// 获取绝对路径
+	path, err := GetRealPath(ctx, path)
+	log.Debugln(path)
+	if err != nil {
+		return nil, err
+	}
+
+	// 从根目录开始寻找
+	var current bson.M
+	files.FindOne(context.Background(), bson.M{"_id": os.Getenv("rootInode")}).Decode(&current)
+	segments := strings.Split(path[1:], "/")
+	log.Debugln(segments)
+	// 是否需要包括最后一级目录
+	if !includeLast {
+		segments = segments[:len(segments)-1]
+	}
+
+	for _, segment := range segments {
+		log.Debugln("当前目录:", current)
+		// 当前不是目录
+		if current["type"] != "dir" {
+			return nil, errors.New("不是目录")
+		}
+
+		// 获取下一层目录
+		current, err = GetChildFile(ctx, current, segment)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return current, nil
+}
+
 // GetChildFile 获取指定目录下指定文件名的文件
 func GetChildFile(ctx context.Context, fatherDir bson.M, filename string) (bson.M, error) {
 	mg := ctx.Value("mongo").(*mongo.Client)
@@ -97,63 +119,54 @@ func GetChildFile(ctx context.Context, fatherDir bson.M, filename string) (bson.
 
 // GetFileType 获取文件类型
 func GetFileType(ctx context.Context, path string) (string, error) {
-	mg := ctx.Value("mongo").(*mongo.Client)
-	files := mg.Database("starfile").Collection("files")
-
 	path, err := GetRealPath(ctx, path)
 	if err != nil {
 		return "", err
 	}
 
-	var current bson.M
-	files.FindOne(context.Background(), bson.M{"_id": os.Getenv("rootInode")}).Decode(&current)
-	segments := strings.Split(path[1:], "/")
-	log.Debugln(segments)
-	for i, segment := range segments {
-		log.Debugln("当前目录:", current)
-		current, err = GetChildFile(ctx, current, segment) // 获取下一层目录
-		if err != nil {
-			return "", err
-		}
-		if i != len(segments)-1 && current["type"] != "dir" {
-			return "", errors.New("不是目录")
-		}
-	}
-
-	return current["type"].(string), nil
+	current, err := GetFile(ctx, path, true)
+	return current["type"].(string), err
 }
 
-// GetFileContext 获取文件内容
+// GetFileContent 获取文件内容
 func GetFileContent(ctx context.Context, path string) (string, error) {
-	mg := ctx.Value("mongo").(*mongo.Client)
-	files := mg.Database("starfile").Collection("files")
-
 	// 找到目标文件
-	path, err := GetRealPath(ctx, path)
-	log.Debugln(path)
+	current, err := GetFile(ctx, path, true)
 	if err != nil {
 		return "", err
-	}
-	var current bson.M
-	files.FindOne(context.Background(), bson.M{"_id": os.Getenv("rootInode")}).Decode(&current)
-	segments := strings.Split(path[1:], "/")
-	log.Debugln(segments)
-	for i, segment := range segments {
-		log.Debugln("当前目录:", current)
-		current, err = GetChildFile(ctx, current, segment) // 获取下一层目录
-		if err != nil {
-			return "", err
-		}
-		if i != len(segments)-1 && current["type"] != "dir" {
-			return "", errors.New("不是目录")
-		}
 	}
 
 	if current["type"] != "file" {
 		return "", errors.New("不可获取文件夹内容")
 	}
-
 	return current["content"].(string), nil
+}
+
+// SetChmod 设置文件访问权限
+func SetChmod(ctx context.Context, path string, chmod int, modifyInner bool) error {
+	mg := ctx.Value("mongo").(*mongo.Client)
+	files := mg.Database("starfile").Collection("files")
+
+	// 获取目标文件
+	current, err := GetFile(ctx, path, true)
+	if err != nil {
+		return err
+	}
+
+	// 修改文件权限
+	filter := bson.M{"_id": current["_id"]}
+	update := bson.M{"$set": bson.M{"chmod": chmod}}
+	files.UpdateOne(context.Background(), filter, update)
+	if current["type"] == "dir" && modifyInner {
+		// 递归修改所有子目录的权限
+		for name, _ := range current["content"].(bson.M) {
+			err := SetChmod(ctx, filepath.Join(path, name), chmod, true)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 // DeleteFile 删除文件(目录)
@@ -161,28 +174,14 @@ func DeleteFile(ctx context.Context, path string, deleteFile bool, deleteDir boo
 	mg := ctx.Value("mongo").(*mongo.Client)
 	files := mg.Database("starfile").Collection("files")
 
-	// 找到目标文件
-	path, err := GetRealPath(ctx, path)
-	log.Debugln(path)
+	// 找到父目录
+	father, err := GetFile(ctx, path, false)
 	if err != nil {
 		return err
 	}
-	var current bson.M
-	var father bson.M
-	files.FindOne(context.Background(), bson.M{"_id": os.Getenv("rootInode")}).Decode(&current)
-	segments := strings.Split(path[1:], "/")
-	log.Debugln(segments)
-	for i, segment := range segments {
-		log.Debugln("当前目录:", current)
-		father = current
-		current, err = GetChildFile(ctx, current, segment) // 获取下一层目录
-		if err != nil {
-			return err
-		}
-		if i != len(segments)-1 && current["type"] != "dir" {
-			return errors.New("不是目录")
-		}
-	}
+	// 找到目标文件
+	filename := filepath.Base(path)
+	current, err := GetChildFile(ctx, father, filename)
 
 	// 判断目标类型
 	if current["type"] == "dir" {
@@ -209,8 +208,8 @@ func DeleteFile(ctx context.Context, path string, deleteFile bool, deleteDir boo
 	}
 
 	// 删除目标文件
-	log.Debugln("删除", segments[len(segments)-1])
-	delete(father["content"].(bson.M), segments[len(segments)-1])
+	log.Debugln("删除", filename)
+	delete(father["content"].(bson.M), filename)
 	files.UpdateOne(context.Background(), bson.M{"_id": father["_id"]}, bson.M{"$set": father})
 	files.DeleteOne(context.Background(), bson.M{"_id": current["_id"]})
 	nowPath, _ := GetPwd(ctx)

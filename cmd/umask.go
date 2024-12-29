@@ -9,6 +9,7 @@ import (
 	"strconv"
 )
 
+// umaskCmd 修改用户mask
 var umaskCmd = &cobra.Command{
 	Use:   "umask",
 	Short: "查看或修改当前用户的user mask",

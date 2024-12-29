@@ -6,7 +6,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// pwdCmd 当前目录
+// pwdCmd 输出当前路径
 var pwdCmd = &cobra.Command{
 	Use:   "pwd",
 	Short: "获取当前所在的文件路径",

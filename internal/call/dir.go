@@ -113,7 +113,7 @@ func MakeDir(ctx context.Context, path string, isCreateP bool) (primitive.Object
 	dirname := segments[len(segments)-1]
 	log.Debugln(current["_id"])
 	if _, ok := current["content"].(bson.M)[dirname]; ok {
-		return primitive.NilObjectID, errors.New("目录名重复")
+		return primitive.NilObjectID, errors.New("名称重复")
 	}
 
 	// 创建当前目录

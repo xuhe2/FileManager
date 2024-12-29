@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// fileCmd 查看文件类型
 var fileCmd = &cobra.Command{
 	Use:   "file",
 	Short: "查看文件类型",

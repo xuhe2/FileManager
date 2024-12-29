@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// rmdirCmd 删除空目录
 var rmdirCmd = &cobra.Command{
 	Use:   "rmdir",
 	Short: "删除空目录",

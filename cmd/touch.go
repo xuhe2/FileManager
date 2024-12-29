@@ -7,6 +7,7 @@ import (
 	"time"
 )
 
+// touchCmd 访问或创建文件
 var touchCmd = &cobra.Command{
 	Use:   "touch",
 	Short: "创建或访问文件",

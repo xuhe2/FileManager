@@ -8,7 +8,7 @@ import (
 	"os"
 )
 
-// rootCmd 根命令,输出提示信息和启动tui界面
+// rootCmd 根命令,输出提示信息
 var rootCmd = &cobra.Command{
 	Use:   "StarFileManager",
 	Short: "一个多用户仿文件管理系统",
