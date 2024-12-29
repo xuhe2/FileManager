@@ -169,6 +169,40 @@ func SetChmod(ctx context.Context, path string, chmod int, modifyInner bool) err
 	return nil
 }
 
+// SetChown 设置文件所有者
+func SetChown(ctx context.Context, path string, owner string, modifyInner bool) error {
+	mg := ctx.Value("mongo").(*mongo.Client)
+	files := mg.Database("starfile").Collection("files")
+	users := mg.Database("starfile").Collection("users")
+
+	// 验证用户是否存在
+	filter := bson.M{"username": owner}
+	if users.FindOne(ctx, filter).Err() != nil {
+		return errors.New("用户不存在")
+	}
+
+	// 获取目标文件
+	current, err := GetFile(ctx, path, true)
+	if err != nil {
+		return err
+	}
+
+	// 修改文件所有者
+	filter = bson.M{"_id": current["_id"]}
+	update := bson.M{"$set": bson.M{"owner": owner}}
+	files.UpdateOne(context.Background(), filter, update)
+	if current["type"] == "dir" && modifyInner {
+		// 递归修改所有子目录的权限
+		for name, _ := range current["content"].(bson.M) {
+			err := SetChown(ctx, filepath.Join(path, name), owner, true)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 // DeleteFile 删除文件(目录)
 func DeleteFile(ctx context.Context, path string, deleteFile bool, deleteDir bool, deleteOnlyEmptyDir bool) error {
 	mg := ctx.Value("mongo").(*mongo.Client)

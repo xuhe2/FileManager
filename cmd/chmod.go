@@ -22,6 +22,10 @@ var chmodCmd = &cobra.Command{
 		}
 
 		r, err := cmd.Flags().GetBool("recursive")
+		if err != nil {
+			return err
+		}
+
 		return call.SetChmod(cmd.Context(), args[1], int(chmod), r)
 	},
 }
