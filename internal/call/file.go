@@ -12,6 +12,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -201,6 +202,41 @@ func SetChown(ctx context.Context, path string, owner string, modifyInner bool) 
 		}
 	}
 	return nil
+}
+
+// GetModString chmod数字转字符串
+func GetModString(ctx context.Context, chmod int) string {
+	permMap := map[rune]string{
+		'0': "---",
+		'1': "--x",
+		'2': "-w-",
+		'3': "-wx",
+		'4': "r--",
+		'5': "r-x",
+		'6': "rw-",
+		'7': "rwx",
+	}
+
+	res := ""
+	mods := strconv.FormatInt(int64(chmod), 8)
+	for _, dig := range mods {
+		res += permMap[dig]
+	}
+	return res
+}
+
+// GetHLinkCount 获取硬链接数量
+func GetHLinkCount(ctx context.Context, inodeId primitive.ObjectID) int {
+	mg := ctx.Value("mongo").(*mongo.Client)
+	files := mg.Database("starfile").Collection("files")
+
+	var file bson.M
+	files.FindOne(ctx, bson.M{"_id": inodeId}).Decode(&file)
+	if file["type"] == "file" {
+		return 1
+	} else {
+		return len(file["content"].(bson.M)) + 2
+	}
 }
 
 // DeleteFile 删除文件(目录)
