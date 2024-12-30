@@ -2,13 +2,10 @@ package call
 
 import (
 	"StarFileManager/internal/factory"
-	"StarFileManager/internal/model"
 	"context"
 	"errors"
 	"fmt"
 	"github.com/charmbracelet/bubbles/table"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson"
@@ -138,121 +135,74 @@ func MakeDir(ctx context.Context, path string, isCreateP bool) (primitive.Object
 	return inodeId, nil
 }
 
-// ListFiles 列出指定目录下的所有文件信息
-func ListFiles(ctx context.Context, path string, showDetail bool) error {
+// ListFiles 列出指定目录下的所有文件
+func ListFiles(ctx context.Context, path string) ([]string, error) {
 	path, err := GetRealPath(ctx, path)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// 获取指定目录
 	filename := filepath.Base(path)
 	current, err := GetFile(ctx, path, true)
 	if err != nil {
-		return err
-	}
-
-	// 表头
-	cols := []table.Column{
-		{Title: "权限", Width: 10},
-		{Title: "硬连接数", Width: 10},
-		{Title: "所有者", Width: 10},
-		{Title: "编辑时间", Width: 30},
-		{Title: "类型", Width: 10},
-		{Title: "文件名", Width: 10},
+		return nil, err
 	}
 
 	// 当前不是目录,输出当前文件
 	if current["type"] != "dir" {
-		if showDetail {
-			rows := []table.Row{
-				{
-					GetModString(ctx, int(current["chmod"].(int32))),
-					strconv.FormatInt(int64(GetHLinkCount(ctx, current["_id"].(primitive.ObjectID))), 10),
-					current["owner"].(string),
-					current["time"].(primitive.DateTime).Time().Format("2006-01-02 15:04:05"),
-					current["type"].(string),
-					filename,
-				},
-			}
-			t := table.New(
-				table.WithColumns(cols),
-				table.WithRows(rows),
-				table.WithFocused(false),
-				table.WithHeight(5),
-			)
-
-			// 设置样式
-			borderStyle := lipgloss.NewStyle().
-				Border(lipgloss.NormalBorder(), false, false, true, false)
-			defaultStyle := lipgloss.NewStyle()
-			t.SetStyles(
-				table.Styles{
-					Header:   borderStyle,
-					Cell:     defaultStyle,
-					Selected: defaultStyle,
-				},
-			)
-
-			m := model.LsTable{Table: t}
-			if _, err := tea.NewProgram(m).Run(); err != nil {
-				return err
-			}
-			return nil
-		} else {
-			fmt.Println(filename)
-		}
+		return []string{filename}, nil
 	} else {
 		// 遍历当前目录下的文件
-		var rows []table.Row
+		var res []string
 		for name, _ := range current["content"].(bson.M) {
-			if showDetail {
-				file, err := GetChildFile(ctx, current, name)
-				if err != nil {
-					return err
-				}
-				rows = append(rows, table.Row{
-					GetModString(ctx, int(file["chmod"].(int32))),
-					strconv.FormatInt(int64(GetHLinkCount(ctx, file["_id"].(primitive.ObjectID))), 10),
-					file["owner"].(string),
-					file["time"].(primitive.DateTime).Time().Format("2006-01-02 15:04:05"),
-					file["type"].(string),
-					name,
-				})
-			} else {
-				fmt.Printf("%s\t", name)
-			}
+			res = append(res, name)
 		}
+		return res, nil
+	}
+}
 
-		// 显示表格
-		if showDetail {
-			t := table.New(
-				table.WithColumns(cols),
-				table.WithRows(rows),
-				table.WithFocused(false),
-				table.WithHeight(5),
-			)
-
-			// 设置样式
-			borderStyle := lipgloss.NewStyle().
-				Border(lipgloss.NormalBorder(), false, false, true, false)
-			defaultStyle := lipgloss.NewStyle()
-			t.SetStyles(
-				table.Styles{
-					Header:   borderStyle,
-					Cell:     defaultStyle,
-					Selected: defaultStyle,
-				},
-			)
-
-			m := model.LsTable{Table: t}
-			if _, err := tea.NewProgram(m).Run(); err != nil {
-				return err
-			}
-		} else {
-			fmt.Println()
-		}
+// ListFilesDetail 列出指定目录下的所有文件详细信息
+func ListFilesDetail(ctx context.Context, path string) ([]table.Row, error) {
+	path, err := GetRealPath(ctx, path)
+	if err != nil {
+		return nil, err
 	}
 
-	return nil
+	// 获取指定目录
+	filename := filepath.Base(path)
+	current, err := GetFile(ctx, path, true)
+	if err != nil {
+		return nil, err
+	}
+
+	// 当前不是目录,输出当前文件
+	if current["type"] != "dir" {
+		return []table.Row{{
+			GetModString(ctx, int(current["chmod"].(int32))),
+			strconv.FormatInt(int64(GetHLinkCount(ctx, current["_id"].(primitive.ObjectID))), 10),
+			current["owner"].(string),
+			current["time"].(primitive.DateTime).Time().Format("2006-01-02 15:04:05"),
+			current["type"].(string),
+			filename,
+		}}, nil
+	} else {
+		// 遍历当前目录下的文件
+		var res []table.Row
+		for name, _ := range current["content"].(bson.M) {
+			file, err := GetChildFile(ctx, current, name)
+			if err != nil {
+				return nil, err
+			}
+			res = append(res, table.Row{
+				GetModString(ctx, int(file["chmod"].(int32))),
+				strconv.FormatInt(int64(GetHLinkCount(ctx, file["_id"].(primitive.ObjectID))), 10),
+				file["owner"].(string),
+				file["time"].(primitive.DateTime).Time().Format("2006-01-02 15:04:05"),
+				file["type"].(string),
+				name,
+			})
+		}
+		return res, nil
+	}
 }

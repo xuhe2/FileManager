@@ -204,6 +204,28 @@ func SetChown(ctx context.Context, path string, owner string, modifyInner bool) 
 	return nil
 }
 
+// SaveFileContent 保存文件内容
+func SaveFileContent(ctx context.Context, path string, content string) error {
+	mg := ctx.Value("mongo").(*mongo.Client)
+	files := mg.Database("starfile").Collection("files")
+
+	// 获取文件
+	current, err := GetFile(ctx, path, true)
+	if err != nil {
+		return err
+	}
+
+	if current["type"] != "file" {
+		return errors.New("目标必须是文件")
+	}
+
+	// 修改文件内容
+	filter := bson.M{"_id": current["_id"]}
+	update := bson.M{"$set": bson.M{"content": content}}
+	files.UpdateOne(context.Background(), filter, update)
+	return nil
+}
+
 // GetModString chmod数字转字符串
 func GetModString(ctx context.Context, chmod int) string {
 	permMap := map[rune]string{

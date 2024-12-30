@@ -2,6 +2,9 @@ package cmd
 
 import (
 	"StarFileManager/internal/call"
+	"StarFileManager/internal/view"
+	"fmt"
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 )
 
@@ -15,13 +18,36 @@ var lsCmd = &cobra.Command{
 			return err
 		}
 
+		// 获取查询目标
 		target := ""
 		if len(args) < 1 {
+			// 默认为当前目录
 			target = "."
 		} else {
 			target = args[0]
 		}
-		call.ListFiles(cmd.Context(), target, showDetail)
+
+		if showDetail {
+			res, err := call.ListFilesDetail(cmd.Context(), target)
+			if err != nil {
+				return err
+			}
+
+			// 显示界面
+			t := view.NewLsTable(res)
+			if _, err := tea.NewProgram(t).Run(); err != nil {
+				return err
+			}
+		} else {
+			res, err := call.ListFiles(cmd.Context(), target)
+			if err != nil {
+				return err
+			}
+			for _, item := range res {
+				fmt.Printf("%s\t", item)
+			}
+			fmt.Println()
+		}
 		return nil
 	},
 }

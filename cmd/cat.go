@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"StarFileManager/internal/call"
-	"StarFileManager/internal/model"
+	"StarFileManager/internal/view"
 	"errors"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
@@ -27,7 +27,7 @@ var catCmd = &cobra.Command{
 
 		// 显示内容
 		p := tea.NewProgram(
-			model.CatView{
+			view.CatView{
 				Title:   filepath.Base(args[0]),
 				Content: content,
 			},

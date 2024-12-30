@@ -4,6 +4,7 @@ go 1.23.3
 
 require (
 	github.com/antonfisher/nested-logrus-formatter v1.3.1 // indirect
+	github.com/atotto/clipboard v0.1.4 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/charmbracelet/bubbles v0.20.0 // indirect
