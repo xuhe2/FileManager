@@ -2,9 +2,11 @@ package cmd
 
 import (
 	"StarFileManager/internal/call"
+	"StarFileManager/internal/model"
 	"errors"
-	"fmt"
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
+	"path/filepath"
 )
 
 // catCmd 查看文件内容
@@ -21,7 +23,21 @@ var catCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		fmt.Println(content)
+		//fmt.Println(content)
+
+		// 显示内容
+		p := tea.NewProgram(
+			model.CatView{
+				Title:   filepath.Base(args[0]),
+				Content: content,
+			},
+			tea.WithAltScreen(),
+			tea.WithMouseCellMotion(),
+		)
+
+		if _, err := p.Run(); err != nil {
+			return err
+		}
 		return nil
 	},
 }
