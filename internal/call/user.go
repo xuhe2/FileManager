@@ -35,16 +35,13 @@ func Login(ctx context.Context, username string, password string) bool {
 		return false
 	} else {
 		// 写入缓存
-		//标记当前会话对应当前用户
+		// 标记当前会话对应当前用户
 		re.Set(context.Background(), string(os.Getppid()), username, 0)
-
 		// user mask
 		re.Set(context.Background(), fmt.Sprintf("%s:umask", username), user["umask"], 0)
-
 		// 初始路径(主目录)
-		homepath := fmt.Sprintf("/home/%s", username)
+		homepath := GetHomePath(ctx)
 		re.Set(context.Background(), fmt.Sprintf("%s:path", username), homepath, 0)
-		// TODO 写入其他缓存初始值
 		return true
 	}
 }
@@ -105,4 +102,13 @@ func SetUmask(ctx context.Context, umask int) error {
 	re.Get(context.Background(), fmt.Sprintf("%s:umask", username))
 	re.Set(context.Background(), fmt.Sprintf("%s:umask", username), umask, 0)
 	return nil
+}
+
+// GetHomePath 获取当前主目录
+func GetHomePath(ctx context.Context) string {
+	user := GetUser(ctx)
+	if user == "root" {
+		return "/"
+	}
+	return fmt.Sprintf("/home/%s", user)
 }
