@@ -9,7 +9,7 @@ import (
 var mvCmd = &cobra.Command{
 	Use:   "mv",
 	Short: "移动文件",
-	Long:  `移动文件到指定的位置`,
+	Long:  `移动第一个参数的文件到第二个参数指定的位置`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 2 {
 			return errors.New("缺少操作数")

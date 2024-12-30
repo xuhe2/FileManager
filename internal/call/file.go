@@ -210,6 +210,7 @@ func SetChown(ctx context.Context, path string, owner string, modifyInner bool) 
 // SaveFileContent 保存文件内容
 func SaveFileContent(ctx context.Context, path string, content string) error {
 	mg := ctx.Value("mongo").(*mongo.Client)
+	re := ctx.Value("redis").(*redis.Client)
 	files := mg.Database("starfile").Collection("files")
 
 	// 获取文件
@@ -221,6 +222,12 @@ func SaveFileContent(ctx context.Context, path string, content string) error {
 	if current["type"] != "file" {
 		return errors.New("目标必须是文件")
 	}
+
+	// 验证是否存在写锁
+	if s, _ := re.SetNX(context.Background(), current["_id"].(primitive.ObjectID).String(), 1, 0).Result(); !s {
+		return errors.New("文件当前被占用")
+	}
+	re.Del(context.Background(), current["_id"].(primitive.ObjectID).String())
 
 	// 修改文件内容
 	filter := bson.M{"_id": current["_id"]}
