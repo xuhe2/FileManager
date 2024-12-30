@@ -2,6 +2,7 @@ package main
 
 import (
 	"StarFileManager/cmd"
+	"StarFileManager/internal/call"
 	"StarFileManager/internal/factory"
 	"context"
 	"fmt"
@@ -68,6 +69,8 @@ func main() {
 		root["content"].(bson.M)["home"] = homeId.(primitive.ObjectID)
 		files.InsertOne(context.Background(), root)
 	}
+	// 创建根用户
+	call.Register(ctx, "root", os.Getenv("rootPassword"))
 
 	// 当前登录用户
 	user, err := re.Get(context.Background(), string(os.Getppid())).Result()

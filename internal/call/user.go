@@ -22,7 +22,7 @@ func GetUser(ctx context.Context) string {
 }
 
 // Login 用户登录
-func Login(ctx context.Context, username string, password string) bool {
+func Login(ctx context.Context, username string, password string) error {
 	mg := ctx.Value("mongo").(*mongo.Client)
 	re := ctx.Value("redis").(*redis.Client)
 	users := mg.Database("starfile").Collection("users")
@@ -32,7 +32,7 @@ func Login(ctx context.Context, username string, password string) bool {
 	var user bson.M
 	//users.InsertOne(ctx, filter)
 	if err := users.FindOne(context.Background(), filter).Decode(&user); err != nil {
-		return false
+		return errors.New("用户名或密码错误")
 	} else {
 		// 写入缓存
 		// 标记当前会话对应当前用户
@@ -40,9 +40,9 @@ func Login(ctx context.Context, username string, password string) bool {
 		// user mask
 		re.Set(context.Background(), fmt.Sprintf("%s:umask", username), user["umask"], 0)
 		// 初始路径(主目录)
-		homepath := GetHomePath(ctx)
+		homepath := GetHomePath(username)
 		re.Set(context.Background(), fmt.Sprintf("%s:path", username), homepath, 0)
-		return true
+		return nil
 	}
 }
 
@@ -53,7 +53,7 @@ func Logout(ctx context.Context) {
 }
 
 // Register 用户注册
-func Register(ctx context.Context, username string, password string) bool {
+func Register(ctx context.Context, username string, password string) error {
 	mg := ctx.Value("mongo").(*mongo.Client)
 	users := mg.Database("starfile").Collection("users")
 	files := mg.Database("starfile").Collection("files")
@@ -61,7 +61,7 @@ func Register(ctx context.Context, username string, password string) bool {
 	// 验证是否重复注册
 	filter := bson.M{"username": username}
 	if err := users.FindOne(context.Background(), filter).Err(); err == nil {
-		return false
+		return errors.New("用户已存在")
 	}
 
 	// 写入用户
@@ -81,7 +81,7 @@ func Register(ctx context.Context, username string, password string) bool {
 	}}
 	files.UpdateOne(context.Background(), filter, update)
 
-	return true
+	return nil
 }
 
 // SetUmask 设置用户mask
@@ -105,8 +105,7 @@ func SetUmask(ctx context.Context, umask int) error {
 }
 
 // GetHomePath 获取当前主目录
-func GetHomePath(ctx context.Context) string {
-	user := GetUser(ctx)
+func GetHomePath(user string) string {
 	if user == "root" {
 		return "/"
 	}

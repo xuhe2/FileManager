@@ -425,7 +425,7 @@ func DeleteFile(ctx context.Context, path string, deleteFile bool, deleteDir boo
 	files.DeleteOne(context.Background(), bson.M{"_id": current["_id"]})
 	nowPath, _ := GetPwd(ctx)
 	if nowPath == path {
-		ChangePath(ctx, GetHomePath(ctx))
+		ChangePath(ctx, GetHomePath(GetUser(ctx)))
 	}
 
 	return nil

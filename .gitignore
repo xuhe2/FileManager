@@ -29,3 +29,5 @@ data/
 StarFileManager
 
 .idea
+
+.fuse_hidden*

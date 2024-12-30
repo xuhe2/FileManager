@@ -2,7 +2,8 @@ package cmd
 
 import (
 	"StarFileManager/internal/call"
-	"errors"
+	"StarFileManager/internal/view"
+	tea "github.com/charmbracelet/bubbletea"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -23,15 +24,16 @@ var loginCmd = &cobra.Command{
 		}
 		log.Debugln("username:", username, ", password:", password)
 
-		if username != "root" && password == "" {
-			// TODO tui输入密码
-		}
-		res := call.Login(cmd.Context(), username, password)
-		if res {
+		if password == "" {
+			i := view.NewPasswordInput(cmd.Context(), username, call.Login)
+			p := tea.NewProgram(i)
+			if _, err := p.Run(); err != nil {
+				return err
+			}
 			return nil
-		} else {
-			return errors.New("用户名或密码错误")
 		}
+		err = call.Login(cmd.Context(), username, password)
+		return err
 	},
 }
 
