@@ -9,6 +9,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -110,4 +111,31 @@ func GetHomePath(user string) string {
 		return "/"
 	}
 	return fmt.Sprintf("/home/%s", user)
+}
+
+// CheckMod 验证权限
+func CheckMod(ctx context.Context, file bson.M, mod string) bool {
+	mods := GetModString(ctx, int(file["chmod"].(int32)))
+	user := GetUser(ctx)
+
+	// root无视权限
+	if user == "root" {
+		return true
+	}
+
+	// 用户为所有者
+	if user == file["owner"] {
+		// 前三位
+		mods = mods[0:3]
+	} else {
+		// 后三位
+		mods = mods[6:9]
+	}
+
+	// 验证是否具有权限
+	if strings.Contains(mods, mod) {
+		return true
+	} else {
+		return false
+	}
 }

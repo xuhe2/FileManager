@@ -23,8 +23,12 @@ func MakeFile(ctx context.Context, path string, stamp time.Time) (primitive.Obje
 	re := ctx.Value("redis").(*redis.Client)
 	files := mg.Database("starfile").Collection("files")
 
-	// 逐个进入目录
+	// 进入父目录
 	current, err := GetFile(ctx, path, false)
+	// 验证权限
+	if !CheckMod(ctx, current, "w") {
+		return primitive.NilObjectID, errors.New("权限不够")
+	}
 
 	// 验证是否重复创建
 	log.Debugln(current["_id"])
@@ -34,6 +38,10 @@ func MakeFile(ctx context.Context, path string, stamp time.Time) (primitive.Obje
 		file, err := GetChildFile(ctx, current, filename)
 		if err != nil {
 			return primitive.NilObjectID, err
+		}
+		// 验证权限
+		if !CheckMod(ctx, file, "w") {
+			return primitive.NilObjectID, errors.New("权限不够")
 		}
 		inodeId := file["_id"].(primitive.ObjectID)
 		filter := bson.M{"_id": inodeId}
@@ -111,6 +119,11 @@ func GetChildFile(ctx context.Context, fatherDir bson.M, filename string) (bson.
 	mg := ctx.Value("mongo").(*mongo.Client)
 	files := mg.Database("starfile").Collection("files")
 
+	// 验证权限
+	if !CheckMod(ctx, fatherDir, "x") {
+		return nil, errors.New("权限不够")
+	}
+
 	inodeId, ok := fatherDir["content"].(bson.M)[filename]
 	if !ok {
 		return nil, errors.New("没有那个文件或目录")
@@ -118,6 +131,7 @@ func GetChildFile(ctx context.Context, fatherDir bson.M, filename string) (bson.
 	res := bson.M{}
 	filter := bson.M{"_id": inodeId}
 	err := files.FindOne(ctx, filter).Decode(&res)
+
 	return res, err
 }
 
@@ -129,7 +143,11 @@ func GetFileType(ctx context.Context, path string) (string, error) {
 	}
 
 	current, err := GetFile(ctx, path, true)
-	return current["type"].(string), err
+	if err != nil {
+		return "", err
+	}
+
+	return current["type"].(string), nil
 }
 
 // GetFileContent 获取文件内容
@@ -138,6 +156,10 @@ func GetFileContent(ctx context.Context, path string) (string, error) {
 	current, err := GetFile(ctx, path, true)
 	if err != nil {
 		return "", err
+	}
+	// 验证权限
+	if !CheckMod(ctx, current, "r") {
+		return "", errors.New("权限不够")
 	}
 
 	if current["type"] != "file" {
@@ -155,6 +177,12 @@ func SetChmod(ctx context.Context, path string, chmod int, modifyInner bool) err
 	current, err := GetFile(ctx, path, true)
 	if err != nil {
 		return err
+	}
+
+	// 验证是否可以设置
+	user := GetUser(ctx)
+	if user != "root" && user != current["owner"] {
+		return errors.New("非所有者不可修改")
 	}
 
 	// 修改文件权限
@@ -191,6 +219,12 @@ func SetChown(ctx context.Context, path string, owner string, modifyInner bool) 
 		return err
 	}
 
+	// 验证是否可以设置
+	user := GetUser(ctx)
+	if user != "root" && user != current["owner"] {
+		return errors.New("非所有者不可修改")
+	}
+
 	// 修改文件所有者
 	filter = bson.M{"_id": current["_id"]}
 	update := bson.M{"$set": bson.M{"owner": owner}}
@@ -218,7 +252,12 @@ func SaveFileContent(ctx context.Context, path string, content string) error {
 	if err != nil {
 		return err
 	}
+	// 验证权限
+	if !CheckMod(ctx, current, "w") {
+		return errors.New("权限不够")
+	}
 
+	// 确认类型
 	if current["type"] != "file" {
 		return errors.New("目标必须是文件")
 	}
@@ -257,7 +296,7 @@ func GetModString(ctx context.Context, chmod int) string {
 	return res
 }
 
-// GetHLinkCount 获取硬链接数量
+// GetHLinkCount 获取硬链接数量(假实现)
 func GetHLinkCount(ctx context.Context, inodeId primitive.ObjectID) int {
 	mg := ctx.Value("mongo").(*mongo.Client)
 	files := mg.Database("starfile").Collection("files")
@@ -281,10 +320,13 @@ func CopyFile(ctx context.Context, src, tar string) error {
 	if err != nil {
 		return err
 	}
-
 	// 判断源文件类型
 	if srcFile["type"] != "file" {
 		return errors.New("此系统调用只能拷贝文件")
+	}
+	// 判断源文件权限
+	if !CheckMod(ctx, srcFile, "r") {
+		return errors.New("权限不够")
 	}
 
 	// 找到目标位置父目录
@@ -296,13 +338,17 @@ func CopyFile(ctx context.Context, src, tar string) error {
 	if err != nil {
 		return err
 	}
-	filename := filepath.Base(tar)
-
+	// 判断目标目录权限
+	if !CheckMod(ctx, tarFile, "w") {
+		return errors.New("权限不够")
+	}
 	// 判断是否是目录
 	if tarFile["type"] != "dir" {
 		return errors.New("目标地址所在位置不是目录")
 	}
+
 	// 如果目标已存在报错
+	filename := filepath.Base(tar)
 	if _, err := GetChildFile(ctx, tarFile, filename); err == nil {
 		return errors.New("目标已存在")
 	}
@@ -335,11 +381,18 @@ func MoveFile(ctx context.Context, src, tar string) error {
 	if err != nil {
 		return err
 	}
-
+	// 验证源文件父目录权限
+	if !CheckMod(ctx, srcFile, "w") {
+		return errors.New("权限不够")
+	}
 	// 验证源文件是否存在
 	current, err := GetChildFile(ctx, srcFile, filename)
 	if err != nil {
 		return err
+	}
+	// 验证源文件权限
+	if !CheckMod(ctx, current, "r") {
+		return errors.New("权限不够")
 	}
 
 	// 找到目标位置父目录
@@ -351,7 +404,10 @@ func MoveFile(ctx context.Context, src, tar string) error {
 	if err != nil {
 		return err
 	}
-
+	// 验证目标目录权限
+	if !CheckMod(ctx, tarFile, "w") {
+		return errors.New("权限不够")
+	}
 	// 判断是否是目录
 	if tarFile["type"] != "dir" {
 		return errors.New("目标地址所在位置不是目录")
@@ -384,11 +440,14 @@ func MoveFile(ctx context.Context, src, tar string) error {
 func DeleteFile(ctx context.Context, path string, deleteFile bool, deleteDir bool, deleteOnlyEmptyDir bool) error {
 	mg := ctx.Value("mongo").(*mongo.Client)
 	files := mg.Database("starfile").Collection("files")
-
 	// 找到父目录
 	father, err := GetFile(ctx, path, false)
 	if err != nil {
 		return err
+	}
+	// 验证权限
+	if !CheckMod(ctx, father, "w") {
+		return errors.New("权限不够")
 	}
 	// 找到目标文件
 	filename := filepath.Base(path)

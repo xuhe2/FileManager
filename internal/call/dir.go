@@ -32,7 +32,6 @@ func GetRealPath(ctx context.Context, path string) (string, error) {
 	if filepath.IsAbs(path) {
 		return path, nil
 	}
-
 	// 相对路径,拼接
 	pwd, err := GetPwd(ctx)
 	if err != nil {
@@ -52,9 +51,14 @@ func ChangePath(ctx context.Context, target string) error {
 	}
 
 	// 获取目标目录
-	_, err = GetFile(ctx, target, true)
+	file, err := GetFile(ctx, target, true)
 	if err != nil {
 		return err
+	}
+
+	// 验证权限
+	if !CheckMod(ctx, file, "x") {
+		return errors.New("权限不够")
 	}
 
 	// 修改缓存
@@ -92,6 +96,10 @@ func MakeDir(ctx context.Context, path string, isCreateP bool) (primitive.Object
 		// 目录不存在
 		if err != nil {
 			if isCreateP {
+				// 验证权限
+				if !CheckMod(ctx, current, "w") {
+					return primitive.NilObjectID, errors.New("权限不够")
+				}
 				// 创建目录
 				id, err := MakeDir(ctx, currentDir, isCreateP)
 				if err != nil {
@@ -103,6 +111,11 @@ func MakeDir(ctx context.Context, path string, isCreateP bool) (primitive.Object
 			}
 		}
 		current = next
+	}
+
+	// 验证权限
+	if !CheckMod(ctx, current, "w") {
+		return primitive.NilObjectID, errors.New("权限不够")
 	}
 
 	// 验证是否重复创建
@@ -154,6 +167,10 @@ func CopyDir(ctx context.Context, src, tar string) error {
 	if err != nil {
 		return err
 	}
+	// 验证源文件权限
+	if !CheckMod(ctx, srcFile, "r") {
+		return errors.New("权限不够")
+	}
 
 	// 找到目标位置父目录
 	tarFile, err := GetFile(ctx, tar, false)
@@ -163,6 +180,10 @@ func CopyDir(ctx context.Context, src, tar string) error {
 	tar, err = GetRealPath(ctx, tar)
 	if err != nil {
 		return err
+	}
+	// 验证目标父目录权限
+	if !CheckMod(ctx, tarFile, "w") {
+		return errors.New("权限不够")
 	}
 	dirname := filepath.Base(tar)
 
@@ -227,6 +248,10 @@ func ListFiles(ctx context.Context, path string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	// 验证权限
+	if !CheckMod(ctx, current, "r") {
+		return nil, errors.New("权限不够")
+	}
 
 	// 当前不是目录,输出当前文件
 	if current["type"] != "dir" {
@@ -253,6 +278,10 @@ func ListFilesDetail(ctx context.Context, path string) ([]table.Row, error) {
 	current, err := GetFile(ctx, path, true)
 	if err != nil {
 		return nil, err
+	}
+	// 验证权限
+	if !CheckMod(ctx, current, "r") {
+		return nil, errors.New("权限不够")
 	}
 
 	// 当前不是目录,输出当前文件

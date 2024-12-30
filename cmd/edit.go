@@ -32,6 +32,10 @@ var editCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+		// 验证权限
+		if !call.CheckMod(cmd.Context(), file, "w") {
+			return errors.New("权限不够")
+		}
 
 		// 判断类型
 		if file["type"] != "file" {

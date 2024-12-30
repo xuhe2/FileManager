@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
-	log "github.com/sirupsen/logrus"
 )
 
 type EditArea struct {
@@ -37,7 +36,7 @@ func (e EditArea) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// 保存退出
 			err := call.SaveFileContent(e.ctx, e.Filepath, e.textarea.Value())
 			if err != nil {
-				log.Fatalln(err)
+				fmt.Println(err)
 			}
 			return e, tea.Quit
 		case tea.KeyCtrlC:
@@ -47,7 +46,8 @@ func (e EditArea) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// 保存
 			err := call.SaveFileContent(e.ctx, e.Filepath, e.textarea.Value())
 			if err != nil {
-				log.Fatalln(err)
+				fmt.Println(err)
+				return e, tea.Quit
 			}
 		default:
 			if !e.textarea.Focused() {
