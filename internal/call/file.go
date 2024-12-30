@@ -80,6 +80,9 @@ func GetFile(ctx context.Context, path string, includeLast bool) (bson.M, error)
 	// 从根目录开始寻找
 	var current bson.M
 	files.FindOne(context.Background(), bson.M{"_id": os.Getenv("rootInode")}).Decode(&current)
+	if path == "/" {
+		return current, nil
+	}
 	segments := strings.Split(path[1:], "/")
 	log.Debugln(segments)
 	// 是否需要包括最后一级目录
