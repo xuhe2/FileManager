@@ -140,6 +140,11 @@ func CopyDir(ctx context.Context, src, tar string) error {
 	mg := ctx.Value("mongo").(*mongo.Client)
 	files := mg.Database("starfile").Collection("files")
 
+	// 是否复制到自己
+	if isSub := strings.HasPrefix(tar, src+"/"); isSub {
+		return errors.New("无法将目录复制到自己")
+	}
+
 	// 找到源文件
 	srcFile, err := GetFile(ctx, src, true)
 	if err != nil {
@@ -164,6 +169,11 @@ func CopyDir(ctx context.Context, src, tar string) error {
 	// 判断是否是目录
 	if tarFile["type"] != "dir" {
 		return errors.New("目标地址所在位置不是目录")
+	}
+
+	// 如果目标已存在报错
+	if _, err := GetChildFile(ctx, tarFile, dirname); err == nil {
+		return errors.New("目标已存在")
 	}
 
 	// 拷贝当前

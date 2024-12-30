@@ -292,6 +292,10 @@ func CopyFile(ctx context.Context, src, tar string) error {
 	if tarFile["type"] != "dir" {
 		return errors.New("目标地址所在位置不是目录")
 	}
+	// 如果目标已存在报错
+	if _, err := GetChildFile(ctx, tarFile, filename); err == nil {
+		return errors.New("目标已存在")
+	}
 
 	// 拷贝
 	delete(srcFile, "_id")
@@ -341,6 +345,11 @@ func MoveFile(ctx context.Context, src, tar string) error {
 	// 判断是否是目录
 	if tarFile["type"] != "dir" {
 		return errors.New("目标地址所在位置不是目录")
+	}
+
+	// 如果目标已存在报错
+	if _, err := GetChildFile(ctx, tarFile, filepath.Base(tar)); err == nil {
+		return errors.New("目标已存在")
 	}
 
 	// 移动
