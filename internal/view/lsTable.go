@@ -28,7 +28,6 @@ func NewLsTable(rows []table.Row) LsTable {
 		table.WithColumns(cols),
 		table.WithRows(rows),
 		table.WithFocused(false),
-		table.WithHeight(5),
 	)
 
 	// 设置样式
@@ -42,6 +41,7 @@ func NewLsTable(rows []table.Row) LsTable {
 			Selected: defaultStyle,
 		},
 	)
+	t.SetHeight(len(rows) + 3)
 
 	return LsTable{t}
 }

@@ -261,6 +261,55 @@ func GetHLinkCount(ctx context.Context, inodeId primitive.ObjectID) int {
 	}
 }
 
+// CopyFile 拷贝文件
+func CopyFile(ctx context.Context, src, tar string) error {
+	mg := ctx.Value("mongo").(*mongo.Client)
+	files := mg.Database("starfile").Collection("files")
+
+	// 找到源文件
+	srcFile, err := GetFile(ctx, src, true)
+	if err != nil {
+		return err
+	}
+
+	// 判断源文件类型
+	if srcFile["type"] != "file" {
+		return errors.New("此系统调用只能拷贝文件")
+	}
+
+	// 找到目标位置父目录
+	tarFile, err := GetFile(ctx, tar, false)
+	if err != nil {
+		return err
+	}
+	tar, err = GetRealPath(ctx, tar)
+	if err != nil {
+		return err
+	}
+	filename := filepath.Base(tar)
+
+	// 判断是否是目录
+	if tarFile["type"] != "dir" {
+		return errors.New("目标地址所在位置不是目录")
+	}
+
+	// 拷贝
+	delete(srcFile, "_id")
+	srcFile["time"] = time.Now()
+	res, err := files.InsertOne(ctx, srcFile)
+	if err != nil {
+		return err
+	}
+	newId := res.InsertedID
+	tarFile["content"].(bson.M)[filename] = newId
+
+	// 目标父目录保存id
+	filter := bson.M{"_id": tarFile["_id"]}
+	update := bson.M{"$set": bson.M{"content": tarFile["content"]}}
+	files.UpdateOne(context.Background(), filter, update)
+	return nil
+}
+
 // DeleteFile 删除文件(目录)
 func DeleteFile(ctx context.Context, path string, deleteFile bool, deleteDir bool, deleteOnlyEmptyDir bool) error {
 	mg := ctx.Value("mongo").(*mongo.Client)

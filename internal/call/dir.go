@@ -135,6 +135,75 @@ func MakeDir(ctx context.Context, path string, isCreateP bool) (primitive.Object
 	return inodeId, nil
 }
 
+// CopyDir 拷贝目录
+func CopyDir(ctx context.Context, src, tar string) error {
+	mg := ctx.Value("mongo").(*mongo.Client)
+	files := mg.Database("starfile").Collection("files")
+
+	// 找到源文件
+	srcFile, err := GetFile(ctx, src, true)
+	if err != nil {
+		return err
+	}
+	src, err = GetRealPath(ctx, src)
+	if err != nil {
+		return err
+	}
+
+	// 找到目标位置父目录
+	tarFile, err := GetFile(ctx, tar, false)
+	if err != nil {
+		return err
+	}
+	tar, err = GetRealPath(ctx, tar)
+	if err != nil {
+		return err
+	}
+	dirname := filepath.Base(tar)
+
+	// 判断是否是目录
+	if tarFile["type"] != "dir" {
+		return errors.New("目标地址所在位置不是目录")
+	}
+
+	// 拷贝当前
+	delete(srcFile, "_id")
+	srcFile["time"] = time.Now()
+	res, err := files.InsertOne(ctx, srcFile)
+	if err != nil {
+		return err
+	}
+	newId := res.InsertedID
+	tarFile["content"].(bson.M)[dirname] = newId
+
+	// 目标父目录保存id
+	filter := bson.M{"_id": tarFile["_id"]}
+	update := bson.M{"$set": bson.M{"content": tarFile["content"]}}
+	files.UpdateOne(context.Background(), filter, update)
+
+	// 递归拷贝子目录
+	for filename, _ := range srcFile["content"].(bson.M) {
+		current, err := GetChildFile(ctx, srcFile, filename)
+		if err != nil {
+			return err
+		}
+		if current["type"] == "dir" {
+			// 拷贝目录
+			err := CopyDir(ctx, fmt.Sprintf("%s/%s", src, filename), fmt.Sprintf("%s/%s", tar, filename))
+			if err != nil {
+				return err
+			}
+		} else {
+			// 拷贝文件
+			err := CopyFile(ctx, fmt.Sprintf("%s/%s", src, filename), fmt.Sprintf("%s/%s", tar, filename))
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 // ListFiles 列出指定目录下的所有文件
 func ListFiles(ctx context.Context, path string) ([]string, error) {
 	path, err := GetRealPath(ctx, path)

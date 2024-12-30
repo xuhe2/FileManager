@@ -32,7 +32,6 @@ var lsCmd = &cobra.Command{
 			if err != nil {
 				return err
 			}
-
 			// 显示界面
 			t := view.NewLsTable(res)
 			if _, err := tea.NewProgram(t).Run(); err != nil {
