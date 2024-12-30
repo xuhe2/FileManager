@@ -49,6 +49,12 @@ func Login(ctx context.Context, username string, password string) bool {
 	}
 }
 
+// Logout 用户退出登录
+func Logout(ctx context.Context) {
+	re := ctx.Value("redis").(*redis.Client)
+	re.Del(context.Background(), string(os.Getppid()))
+}
+
 // Register 用户注册
 func Register(ctx context.Context, username string, password string) bool {
 	mg := ctx.Value("mongo").(*mongo.Client)
