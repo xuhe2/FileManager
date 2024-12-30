@@ -310,6 +310,57 @@ func CopyFile(ctx context.Context, src, tar string) error {
 	return nil
 }
 
+// MoveFile 移动文件
+func MoveFile(ctx context.Context, src, tar string) error {
+	mg := ctx.Value("mongo").(*mongo.Client)
+	files := mg.Database("starfile").Collection("files")
+
+	// 找到源文件父目录
+	srcFile, err := GetFile(ctx, src, false)
+	filename := filepath.Base(src)
+	if err != nil {
+		return err
+	}
+
+	// 验证源文件是否存在
+	current, err := GetChildFile(ctx, srcFile, filename)
+	if err != nil {
+		return err
+	}
+
+	// 找到目标位置父目录
+	tarFile, err := GetFile(ctx, tar, false)
+	if err != nil {
+		return err
+	}
+	tar, err = GetRealPath(ctx, tar)
+	if err != nil {
+		return err
+	}
+
+	// 判断是否是目录
+	if tarFile["type"] != "dir" {
+		return errors.New("目标地址所在位置不是目录")
+	}
+
+	// 移动
+	// 源父目录删除引用
+	delete(srcFile["content"].(bson.M), filename)
+	if srcFile["_id"] == tarFile["_id"] {
+		delete(tarFile["content"].(bson.M), filename)
+	}
+	filter := bson.M{"_id": srcFile["_id"]}
+	update := bson.M{"$set": bson.M{"content": srcFile["content"]}}
+	_, err = files.UpdateOne(context.Background(), filter, update)
+	// 目标父目录保存id
+	filename = filepath.Base(tar)
+	tarFile["content"].(bson.M)[filename] = current["_id"]
+	filter = bson.M{"_id": tarFile["_id"]}
+	update = bson.M{"$set": bson.M{"content": tarFile["content"]}}
+	files.UpdateOne(context.Background(), filter, update)
+	return nil
+}
+
 // DeleteFile 删除文件(目录)
 func DeleteFile(ctx context.Context, path string, deleteFile bool, deleteDir bool, deleteOnlyEmptyDir bool) error {
 	mg := ctx.Value("mongo").(*mongo.Client)
