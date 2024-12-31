@@ -24,6 +24,6 @@ var rmCmd = &cobra.Command{
 }
 
 func init() {
-	rmCmd.Flags().BoolP("recursive", "r", false, "用户名,如果为空则为root")
+	rmCmd.Flags().BoolP("recursive", "r", false, "递归删除文件夹")
 	rootCmd.AddCommand(rmCmd)
 }

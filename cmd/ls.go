@@ -52,7 +52,7 @@ var lsCmd = &cobra.Command{
 }
 
 func init() {
-	lsCmd.Flags().BoolP("long", "l", false, "")
+	lsCmd.Flags().BoolP("long", "l", false, "列出详细信息")
 
 	rootCmd.AddCommand(lsCmd)
 }

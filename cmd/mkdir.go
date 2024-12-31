@@ -22,7 +22,7 @@ var mkdirCmd = &cobra.Command{
 }
 
 func init() {
-	mkdirCmd.Flags().BoolP("parents", "p", false, "必要时创建父目录")
+	mkdirCmd.Flags().BoolP("parents", "p", false, "允许必要时自动创建父目录")
 
 	rootCmd.AddCommand(mkdirCmd)
 }
