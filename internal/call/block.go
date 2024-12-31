@@ -124,14 +124,14 @@ func WriteFileBlocks(ctx context.Context, block bson.A, content *string) error {
 			}
 			// 1级块,直接写入
 			bl["content"] = (*content)[0:min(1024, len(*content))]
+			update := bson.M{"$set": bl}
+			blocks.UpdateOne(ctx, filter, update)
 			// 去掉已写入部分
 			if len(*content) <= 1024 {
 				*content = (*content)[0:0]
 			} else {
 				*content = (*content)[1024:]
 			}
-			update := bson.M{"$set": bl}
-			blocks.UpdateOne(ctx, filter, update)
 		} else {
 			// 多级块,递归继续写入
 			err := WriteFileBlocks(ctx, bl["content"].(bson.A), content)

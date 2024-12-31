@@ -16,10 +16,10 @@ type EditArea struct {
 
 func NewEditArea(ctx context.Context, filepath string, content string) EditArea {
 	t := textarea.New()
+	t.CharLimit = 0
 	t.Placeholder = ""
 	t.SetValue(content)
 	t.Focus()
-	t.CharLimit = 0
 	return EditArea{ctx, filepath, t}
 }
 func (e EditArea) Init() tea.Cmd {

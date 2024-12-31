@@ -8,8 +8,6 @@ import (
 	"strings"
 )
 
-const useHighPerformanceRenderer = false
-
 var (
 	titleStyle = func() lipgloss.Style {
 		b := lipgloss.RoundedBorder()
@@ -43,10 +41,10 @@ func (m CatView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		if k := msg.String(); k == "ctrl+c" || k == "q" || k == "esc" {
+		k := msg.String()
+		if k == "ctrl+c" || k == "q" || k == "esc" {
 			return m, tea.Quit
 		}
-
 	case tea.WindowSizeMsg:
 		headerHeight := lipgloss.Height(m.headerView())
 		footerHeight := lipgloss.Height(m.footerView())
@@ -55,7 +53,7 @@ func (m CatView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if !m.ready {
 			m.Viewport = viewport.New(msg.Width, msg.Height-verticalMarginHeight)
 			m.Viewport.YPosition = headerHeight
-			m.Viewport.HighPerformanceRendering = useHighPerformanceRenderer
+			m.Viewport.HighPerformanceRendering = false
 			m.Viewport.SetContent(m.Content)
 			m.ready = true
 
@@ -63,10 +61,6 @@ func (m CatView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			m.Viewport.Width = msg.Width
 			m.Viewport.Height = msg.Height - verticalMarginHeight
-		}
-
-		if useHighPerformanceRenderer {
-			cmds = append(cmds, viewport.Sync(m.Viewport))
 		}
 	}
 
@@ -94,4 +88,11 @@ func (m CatView) footerView() string {
 	info := infoStyle.Render(fmt.Sprintf("%3.f%%", m.Viewport.ScrollPercent()*100))
 	line := strings.Repeat("─", max(0, m.Viewport.Width-lipgloss.Width(info)-lipgloss.Width(alert)))
 	return lipgloss.JoinHorizontal(lipgloss.Center, line, alert, info)
+}
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }

@@ -23,7 +23,6 @@ var catCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		//fmt.Println(content)
 
 		// 显示内容
 		p := tea.NewProgram(
