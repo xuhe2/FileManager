@@ -332,6 +332,10 @@ func CopyFile(ctx context.Context, src, tar string) error {
 	if err != nil {
 		return err
 	}
+	src, err = GetRealPath(ctx, src)
+	if err != nil {
+		return err
+	}
 	// 判断源文件类型
 	if srcFile["type"] != "file" {
 		return errors.New("此系统调用只能拷贝文件")
@@ -366,16 +370,37 @@ func CopyFile(ctx context.Context, src, tar string) error {
 	}
 
 	// 拷贝
-	delete(srcFile, "_id")
-	srcFile["time"] = time.Now()
-	res, err := files.InsertOne(ctx, srcFile)
+	newFile := srcFile
+	delete(newFile, "_id")
+	newFile["time"] = time.Now()
+	// 创建新块
+	blocks, err := CreateFileBlocks(ctx)
 	if err != nil {
 		return err
 	}
-	newId := res.InsertedID
-	tarFile["content"].(bson.M)[filename] = newId
+	newFile["content"] = blocks
+	// 更新块
+	content, err := GetFileContent(ctx, src)
+	if err != nil {
+		return err
+	}
+	blocksA := bson.A{}
+	for _, b := range blocks {
+		blocksA = append(blocksA, b)
+	}
+	err = WriteFileBlocks(ctx, blocksA, &content)
+	if err != nil {
+		return err
+	}
+	// 写入
+	res, err := files.InsertOne(ctx, newFile)
+	if err != nil {
+		return err
+	}
 
 	// 目标父目录保存id
+	newId := res.InsertedID
+	tarFile["content"].(bson.M)[filename] = newId
 	filter := bson.M{"_id": tarFile["_id"]}
 	update := bson.M{"$set": bson.M{"content": tarFile["content"], "time": time.Now()}}
 	files.UpdateOne(context.Background(), filter, update)
