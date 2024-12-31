@@ -14,7 +14,8 @@ var rootCmd = &cobra.Command{
 	Short: "一个多用户仿文件管理系统",
 	Long: `一个多用户仿文件管理系统
 仿照Linux文件管理系统实现,支持文件的增删改查和多用户权限管理
-项目依赖MongoDB,需要保证27017端口正常运行MongoDB服务`,
+项目依赖MongoDB,需要保证27017端口正常运行MongoDB服务
+项目依赖Redis,需要保证6379端口正常运行Redis服务`,
 	Run: func(cmd *cobra.Command, args []string) {
 		cmd.Help()
 	},
