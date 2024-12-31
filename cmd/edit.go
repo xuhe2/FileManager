@@ -42,6 +42,12 @@ var editCmd = &cobra.Command{
 			return errors.New("目标必须是文件")
 		}
 
+		// 读取文件内容
+		content, err := call.GetFileContent(cmd.Context(), path)
+		if err != nil {
+			return err
+		}
+
 		// 上写锁
 		if s, _ := re.SetNX(context.Background(), file["_id"].(primitive.ObjectID).String(), 1, 0).Result(); !s {
 			return errors.New("文件当前被占用")
@@ -49,7 +55,7 @@ var editCmd = &cobra.Command{
 		defer re.Del(context.Background(), file["_id"].(primitive.ObjectID).String())
 
 		// 启动编辑文件界面
-		p := tea.NewProgram(view.NewEditArea(cmd.Context(), path, file["content"].(string)))
+		p := tea.NewProgram(view.NewEditArea(cmd.Context(), path, content))
 
 		if _, err := p.Run(); err != nil {
 			return err

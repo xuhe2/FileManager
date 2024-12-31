@@ -56,8 +56,13 @@ func MakeFile(ctx context.Context, path string, stamp time.Time) (primitive.Obje
 	if err != nil {
 		return primitive.NilObjectID, err
 	}
+	// 创建块
+	block, err := CreateFileBlocks(ctx)
+	if err != nil {
+		return primitive.NilObjectID, err
+	}
 	var inodeId primitive.ObjectID
-	if res, err := files.InsertOne(ctx, factory.CreateFile("", GetUser(ctx), stamp, 0666 & ^umask)); err != nil {
+	if res, err := files.InsertOne(ctx, factory.CreateFile(block, GetUser(ctx), stamp, 0666 & ^umask)); err != nil {
 		return primitive.NilObjectID, err
 	} else {
 		inodeId = res.InsertedID.(primitive.ObjectID)
@@ -173,7 +178,10 @@ func GetFileContent(ctx context.Context, path string) (string, error) {
 	if current["type"] != "file" {
 		return "", errors.New("不可获取文件夹内容")
 	}
-	return current["content"].(string), nil
+
+	// 读取文件块内容
+	res, err := ReadFileBlocks(ctx, current["content"].(primitive.A))
+	return res, err
 }
 
 // SetChmod 设置文件访问权限
@@ -195,7 +203,7 @@ func SetChmod(ctx context.Context, path string, chmod int, modifyInner bool) err
 
 	// 修改文件权限
 	filter := bson.M{"_id": current["_id"]}
-	update := bson.M{"$set": bson.M{"chmod": chmod}}
+	update := bson.M{"$set": bson.M{"chmod": chmod, "time": time.Now()}}
 	files.UpdateOne(context.Background(), filter, update)
 	if current["type"] == "dir" && modifyInner {
 		// 递归修改所有子目录的权限
@@ -235,7 +243,7 @@ func SetChown(ctx context.Context, path string, owner string, modifyInner bool) 
 
 	// 修改文件所有者
 	filter = bson.M{"_id": current["_id"]}
-	update := bson.M{"$set": bson.M{"owner": owner}}
+	update := bson.M{"$set": bson.M{"owner": owner, "time": time.Now()}}
 	files.UpdateOne(context.Background(), filter, update)
 	if current["type"] == "dir" && modifyInner {
 		// 递归修改所有子目录的权限
@@ -270,10 +278,13 @@ func SaveFileContent(ctx context.Context, path string, content string) error {
 	}
 
 	// 修改文件内容
-	filter := bson.M{"_id": current["_id"]}
-	update := bson.M{"$set": bson.M{"content": content}}
-	files.UpdateOne(context.Background(), filter, update)
-	return nil
+	err = WriteFileBlocks(ctx, current["content"].(bson.A), &content)
+
+	// 修改访问时间
+	update := bson.M{"$set": bson.M{"time": time.Now()}}
+	files.UpdateOne(context.Background(), bson.M{"_id": current["_id"]}, update)
+
+	return err
 }
 
 // GetModString chmod数字转字符串
@@ -297,7 +308,7 @@ func GetModString(ctx context.Context, chmod int) string {
 	return res
 }
 
-// GetHLinkCount 获取硬链接数量(假实现)
+// GetHLinkCount 获取硬链接数量
 func GetHLinkCount(ctx context.Context, inodeId primitive.ObjectID) int {
 	mg := ctx.Value("mongo").(*mongo.Client)
 	files := mg.Database("starfile").Collection("files")
@@ -366,7 +377,7 @@ func CopyFile(ctx context.Context, src, tar string) error {
 
 	// 目标父目录保存id
 	filter := bson.M{"_id": tarFile["_id"]}
-	update := bson.M{"$set": bson.M{"content": tarFile["content"]}}
+	update := bson.M{"$set": bson.M{"content": tarFile["content"], "time": time.Now()}}
 	files.UpdateOne(context.Background(), filter, update)
 	return nil
 }
@@ -426,14 +437,18 @@ func MoveFile(ctx context.Context, src, tar string) error {
 		delete(tarFile["content"].(bson.M), filename)
 	}
 	filter := bson.M{"_id": srcFile["_id"]}
-	update := bson.M{"$set": bson.M{"content": srcFile["content"]}}
+	update := bson.M{"$set": bson.M{"content": srcFile["content"], "time": time.Now()}}
 	_, err = files.UpdateOne(context.Background(), filter, update)
 	// 目标父目录保存id
 	filename = filepath.Base(tar)
 	tarFile["content"].(bson.M)[filename] = current["_id"]
 	filter = bson.M{"_id": tarFile["_id"]}
-	update = bson.M{"$set": bson.M{"content": tarFile["content"]}}
+	update = bson.M{"$set": bson.M{"content": tarFile["content"], "time": time.Now()}}
 	files.UpdateOne(context.Background(), filter, update)
+	// 修改访问时间
+	filter = bson.M{"_id": current["_id"]}
+	update = bson.M{"$set": bson.M{"time": time.Now()}}
+	files.UpdateOne(context.Background(), files, update)
 	return nil
 }
 
@@ -481,8 +496,14 @@ func DeleteFile(ctx context.Context, path string, deleteFile bool, deleteDir boo
 	// 删除目标文件
 	log.Debugln("删除", filename)
 	delete(father["content"].(bson.M), filename)
+	father["time"] = time.Now()
 	files.UpdateOne(context.Background(), bson.M{"_id": father["_id"]}, bson.M{"$set": father})
 	files.DeleteOne(context.Background(), bson.M{"_id": current["_id"]})
+	// 删除块
+	if current["type"] == "file" {
+		DeleteFileBlocks(ctx, current["content"].(bson.A))
+	}
+	// 修正目录
 	nowPath, _ := GetPwd(ctx)
 	if nowPath == path {
 		ChangePath(ctx, GetHomePath(GetUser(ctx)))

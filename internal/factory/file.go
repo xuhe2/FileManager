@@ -2,25 +2,26 @@ package factory
 
 import (
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"time"
 )
 
-func CreateFile(content, owner string, stamp time.Time, chmod int) bson.M {
+// CreateFile 创建文件
+func CreateFile(blocks []primitive.ObjectID, owner string, stamp time.Time, chmod int) bson.M {
 	return bson.M{
-		"content": content,
+		"content": blocks,
 		"type":    "file",
-		"size":    len([]byte(content)) / 8,
 		"owner":   owner,
 		"chmod":   chmod,
 		"time":    stamp,
 	}
 }
 
+// CreateDir 创建目录
 func CreateDir(owner string, stamp time.Time, chmod int) bson.M {
 	return bson.M{
 		"content": bson.M{},
 		"type":    "dir",
-		"size":    0,
 		"owner":   owner,
 		"chmod":   chmod,
 		"time":    stamp,

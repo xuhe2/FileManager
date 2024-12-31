@@ -142,6 +142,7 @@ func MakeDir(ctx context.Context, path string, isCreateP bool) (primitive.Object
 	filter := bson.M{"_id": current["_id"]}
 	update := bson.M{"$set": bson.M{
 		"content." + dirname: inodeId,
+		"time":               time.Now(),
 	}}
 	files.UpdateOne(context.Background(), filter, update)
 
@@ -209,7 +210,7 @@ func CopyDir(ctx context.Context, src, tar string) error {
 
 	// 目标父目录保存id
 	filter := bson.M{"_id": tarFile["_id"]}
-	update := bson.M{"$set": bson.M{"content": tarFile["content"]}}
+	update := bson.M{"$set": bson.M{"content": tarFile["content"], "time": time.Now()}}
 	files.UpdateOne(context.Background(), filter, update)
 
 	// 递归拷贝子目录

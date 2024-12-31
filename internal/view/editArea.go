@@ -19,6 +19,7 @@ func NewEditArea(ctx context.Context, filepath string, content string) EditArea 
 	t.Placeholder = ""
 	t.SetValue(content)
 	t.Focus()
+	t.CharLimit = 0
 	return EditArea{ctx, filepath, t}
 }
 func (e EditArea) Init() tea.Cmd {
@@ -70,6 +71,6 @@ func (e EditArea) View() string {
 		"%s\n\n%s\n\n%s",
 		e.Filepath,
 		e.textarea.View(),
-		"(ctrl+o to save, esc to save and quit, ctrl+c to quit but not save)",
+		"(ctrl+o保存,esc保存并退出,ctrl+c直接退出)",
 	) + "\n\n"
 }
