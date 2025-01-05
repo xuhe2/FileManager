@@ -31,3 +31,7 @@ StarFileManager
 .idea
 
 .fuse_hidden*
+
+bin/
+test_output/
+.vscode/
