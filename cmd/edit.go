@@ -14,7 +14,7 @@ import (
 
 // 编辑文件
 var editCmd = &cobra.Command{
-	Use:   "edit",
+	Use:   "vim",
 	Short: "Editing file contents",
 	Long:  `Edit the contents of the specified file, not the directory`,
 	RunE: func(cmd *cobra.Command, args []string) error {
