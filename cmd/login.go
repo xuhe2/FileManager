@@ -3,6 +3,7 @@ package cmd
 import (
 	"StarFileManager/internal/call"
 	"StarFileManager/internal/view"
+
 	tea "github.com/charmbracelet/bubbletea"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -11,8 +12,8 @@ import (
 // loginCmd 登录
 var loginCmd = &cobra.Command{
 	Use:   "login",
-	Short: "用户登录",
-	Long:  `进行用户登录,如果不指明用户名则默认登录root根用户,允许后置输入密码`,
+	Short: "login user",
+	Long:  `Log in as a user. If no user name is specified, the root user will be logged in by default. You can enter a password later.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		username, err := cmd.Flags().GetString("username")
 		if err != nil {

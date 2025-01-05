@@ -3,20 +3,21 @@ package cmd
 import (
 	"StarFileManager/internal/call"
 	"errors"
+
 	"github.com/spf13/cobra"
 )
 
 var cpCmd = &cobra.Command{
 	Use:   "cp",
-	Short: "拷贝文件",
-	Long:  `拷贝第一个参数指定的文件到第二个参数指定的目标位置(终止于文件),使用-r标志递归拷贝文件夹`,
+	Short: "copy file or dir",
+	Long:  `Copies the file specified by the first parameter to the destination specified by the second parameter (ending with the file). Use the -r flag to recursively copy folders.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cpDir, err := cmd.Flags().GetBool("recursive")
 		if err != nil {
 			return err
 		}
 		if len(args) < 2 {
-			return errors.New("缺少操作数")
+			return errors.New("missing arguments")
 		}
 
 		if cpDir {
@@ -35,7 +36,7 @@ var cpCmd = &cobra.Command{
 }
 
 func init() {
-	cpCmd.Flags().BoolP("recursive", "r", false, "递归拷贝文件夹")
+	cpCmd.Flags().BoolP("recursive", "r", false, "Recursively copy folders")
 
 	rootCmd.AddCommand(cpCmd)
 }

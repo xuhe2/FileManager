@@ -4,18 +4,18 @@ import (
 	"StarFileManager/internal/call"
 	"context"
 	"fmt"
-	"github.com/spf13/cobra"
 	"os"
+
+	"github.com/spf13/cobra"
 )
 
 // rootCmd 根命令,输出提示信息
 var rootCmd = &cobra.Command{
-	Use:   "StarFileManager",
-	Short: "一个多用户仿文件管理系统",
+	Use:   "FileManager",
+	Short: "A Multi-User Simulated File Management System",
 	Long: `一个多用户仿文件管理系统
 仿照Linux文件管理系统实现,支持文件的增删改查和多用户权限管理
-项目依赖MongoDB,需要保证27017端口正常运行MongoDB服务
-项目依赖Redis,需要保证6379端口正常运行Redis服务`,
+需要使用docker compose启动服务`,
 	Run: func(cmd *cobra.Command, args []string) {
 		cmd.Help()
 	},
@@ -31,7 +31,7 @@ func init() {
 		// 根命令和登录注册命令不检测
 		if cmd != rootCmd && cmd != loginCmd && cmd != registerCmd {
 			if call.GetUser(cmd.Context()) == "" {
-				fmt.Fprintln(os.Stderr, "未登录用户,请先登录")
+				fmt.Fprintln(os.Stderr, "need login first")
 				os.Exit(1)
 			}
 		}

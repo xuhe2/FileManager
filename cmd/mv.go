@@ -3,16 +3,17 @@ package cmd
 import (
 	"StarFileManager/internal/call"
 	"errors"
+
 	"github.com/spf13/cobra"
 )
 
 var mvCmd = &cobra.Command{
 	Use:   "mv",
-	Short: "移动文件",
-	Long:  `移动第一个参数的文件到第二个参数指定的位置`,
+	Short: "Move files",
+	Long:  `Move the file of the first parameter to the location specified by the second parameter`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 2 {
-			return errors.New("缺少操作数")
+			return errors.New("missing arguments")
 		}
 
 		err := call.MoveFile(cmd.Context(), args[0], args[1])

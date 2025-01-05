@@ -3,6 +3,7 @@ package cmd
 import (
 	"StarFileManager/internal/call"
 	"StarFileManager/internal/view"
+
 	tea "github.com/charmbracelet/bubbletea"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -11,8 +12,8 @@ import (
 // registerCmd 注册
 var registerCmd = &cobra.Command{
 	Use:   "register",
-	Short: "用户注册",
-	Long:  `进行用户登录,必须包含用户名,不能重复注册,允许后置输入密码`,
+	Short: "register",
+	Long:  `For user login, the user name must be included, duplicate registration is not allowed, and password entry is allowed later`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		username, err := cmd.Flags().GetString("username")
 		if err != nil {
@@ -38,9 +39,9 @@ var registerCmd = &cobra.Command{
 }
 
 func init() {
-	registerCmd.Flags().StringP("username", "u", "", "用户名,必须包含")
+	registerCmd.Flags().StringP("username", "u", "", "Username, must contain")
 	registerCmd.MarkFlagRequired("username")
-	registerCmd.Flags().StringP("password", "p", "", "密码,如果为空则后续手动输入")
+	registerCmd.Flags().StringP("password", "p", "", "Password, if it is empty, enter it manually later")
 
 	rootCmd.AddCommand(registerCmd)
 }

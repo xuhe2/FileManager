@@ -3,15 +3,16 @@ package cmd
 import (
 	"StarFileManager/internal/call"
 	"errors"
-	"github.com/spf13/cobra"
 	"strconv"
+
+	"github.com/spf13/cobra"
 )
 
 // chmodCmd 修改文件权限
 var chmodCmd = &cobra.Command{
 	Use:   "chmod",
-	Short: "修改指定文件的权限",
-	Long:  `采用数字模式,用三位八进制表示权限,然后输入修改目标.可以使用-R标志递归修改目录下的所有文件的权限`,
+	Short: "change file mode",
+	Long:  `use digit mode, use 3 digit to change mode.use '-R' flag to recursive change file mode`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 2 {
 			return errors.New("缺少操作数")
@@ -31,7 +32,7 @@ var chmodCmd = &cobra.Command{
 }
 
 func init() {
-	chmodCmd.Flags().BoolP("recursive", "R", false, "递归修改目录下的所有文件的权限")
+	chmodCmd.Flags().BoolP("recursive", "R", false, "recursive change file mode")
 
 	rootCmd.AddCommand(chmodCmd)
 }

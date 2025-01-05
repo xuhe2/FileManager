@@ -4,17 +4,18 @@ import (
 	"StarFileManager/internal/call"
 	"errors"
 	"fmt"
+
 	"github.com/spf13/cobra"
 )
 
 // fileCmd 查看文件类型
 var fileCmd = &cobra.Command{
 	Use:   "file",
-	Short: "查看文件类型",
-	Long:  `查看参数所指定的文件的类型`,
+	Short: "Check the file type",
+	Long:  `Check the type of file specified by the parameter`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 1 {
-			return errors.New("缺少操作数")
+			return errors.New("missing file path")
 		}
 		typename, err := call.GetFileType(cmd.Context(), args[0])
 		if err != nil {

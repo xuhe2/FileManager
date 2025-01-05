@@ -4,14 +4,15 @@ import (
 	"StarFileManager/internal/call"
 	"StarFileManager/internal/view"
 	"fmt"
+
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 )
 
 var lsCmd = &cobra.Command{
 	Use:   "ls",
-	Short: "列出指定目录下的目录",
-	Long:  `列出指定目录下的所有文件,可以使用-l标志列出详细信息.`,
+	Short: "List the directories under the specified directory",
+	Long:  `Lists all files in a given directory. You can use the -l flag to display detailed information.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		showDetail, err := cmd.Flags().GetBool("long")
 		if err != nil {
@@ -52,7 +53,7 @@ var lsCmd = &cobra.Command{
 }
 
 func init() {
-	lsCmd.Flags().BoolP("long", "l", false, "列出详细信息")
+	lsCmd.Flags().BoolP("long", "l", false, "List details")
 
 	rootCmd.AddCommand(lsCmd)
 }

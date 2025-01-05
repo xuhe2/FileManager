@@ -3,18 +3,19 @@ package cmd
 import (
 	"StarFileManager/internal/call"
 	"errors"
+
 	"github.com/spf13/cobra"
 )
 
 // mkdirCmd 创建目录
 var mkdirCmd = &cobra.Command{
 	Use:   "mkdir",
-	Short: "创建目录",
-	Long:  `在指定目录下创建目录,`,
+	Short: "make dir",
+	Long:  `make dir`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		p, _ := cmd.Flags().GetBool("parents")
 		if len(args) < 1 {
-			return errors.New("缺少操作数")
+			return errors.New("missing dir name")
 		}
 		_, err := call.MakeDir(cmd.Context(), args[0], p)
 		return err
@@ -22,7 +23,7 @@ var mkdirCmd = &cobra.Command{
 }
 
 func init() {
-	mkdirCmd.Flags().BoolP("parents", "p", false, "允许必要时自动创建父目录")
+	mkdirCmd.Flags().BoolP("parents", "p", false, "Allows automatic creation of parent directories when necessary")
 
 	rootCmd.AddCommand(mkdirCmd)
 }

@@ -4,19 +4,20 @@ import (
 	"StarFileManager/internal/call"
 	"StarFileManager/internal/view"
 	"errors"
+	"path/filepath"
+
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
-	"path/filepath"
 )
 
 // catCmd 查看文件内容
 var catCmd = &cobra.Command{
 	Use:   "cat",
-	Short: "输出文件内容",
-	Long:  `输出文件内容`,
+	Short: "show file content",
+	Long:  `show file content`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 1 {
-			return errors.New("缺少操作数")
+			return errors.New("missing file name")
 		}
 
 		content, err := call.GetFileContent(cmd.Context(), args[0])
